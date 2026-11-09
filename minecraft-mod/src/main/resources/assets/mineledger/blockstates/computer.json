@@ -1,5 +1,8 @@
 {
   "variants": {
-    "": { "model": "mineledger:block/computer" }
+    "facing=north": { "model": "mineledger:block/computer" },
+    "facing=east": { "model": "mineledger:block/computer", "y": 90 },
+    "facing=south": { "model": "mineledger:block/computer", "y": 180 },
+    "facing=west": { "model": "mineledger:block/computer", "y": 270 }
   }
 }

@@ -18,9 +18,9 @@ import net.minecraft.world.level.block.state.BlockBehaviour;
 public final class MineLedgerBlocks {
 	public static final Block COMPUTER = Registry.register(
 			BuiltInRegistries.BLOCK, MineLedger.id("computer"),
-			new Block(BlockBehaviour.Properties.of()
+			new ComputerBlock(BlockBehaviour.Properties.of()
 					.setId(ResourceKey.create(Registries.BLOCK, MineLedger.id("computer")))
-					.strength(1.5F).sound(SoundType.METAL)));
+					.strength(1.5F).sound(SoundType.METAL).noOcclusion()));
 
 	public static final BlockItem COMPUTER_ITEM = Registry.register(
 			BuiltInRegistries.ITEM, MineLedger.id("computer"),
