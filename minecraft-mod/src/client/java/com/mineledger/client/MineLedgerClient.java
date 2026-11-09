@@ -1,10 +1,22 @@
 package com.mineledger.client;
 
 import net.fabricmc.api.ClientModInitializer;
+import com.mineledger.block.MineLedgerBlocks;
+import com.mineledger.client.screen.MineLedgerScreen;
+import net.fabricmc.fabric.api.event.player.UseBlockCallback;
+import net.minecraft.client.Minecraft;
+import net.minecraft.world.InteractionResult;
 
 public class MineLedgerClient implements ClientModInitializer {
 	@Override
 	public void onInitializeClient() {
-		// This entrypoint is suitable for setting up client-specific logic, such as rendering.
+		UseBlockCallback.EVENT.register((player, level, hand, hit) -> {
+			if (level.isClientSide() && !player.isSpectator()
+					&& level.getBlockState(hit.getBlockPos()).is(MineLedgerBlocks.COMPUTER)) {
+				Minecraft.getInstance().gui.setScreen(new MineLedgerScreen());
+				return InteractionResult.SUCCESS;
+			}
+			return InteractionResult.PASS;
+		});
 	}
 }

@@ -1,6 +1,7 @@
 package com.mineledger;
 
 import net.fabricmc.api.ModInitializer;
+import com.mineledger.block.MineLedgerBlocks;
 
 import net.minecraft.resources.Identifier;
 
@@ -21,7 +22,7 @@ public class MineLedger implements ModInitializer {
 		// However, some things (like resources) may still be uninitialized.
 		// Proceed with mild caution.
 
-		LOGGER.info("Hello Fabric world!");
+		MineLedgerBlocks.initialize();
 	}
 
 	public static Identifier id(String path) {
