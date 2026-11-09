@@ -1,4 +1,9 @@
 {
+  "account.mineledger.cash": "Cash",
+  "account.mineledger.inventory": "Inventory",
+  "account.mineledger.accounts_payable": "Accounts Payable",
+  "account.mineledger.advertising_expense": "Advertising Expense",
+  "account.mineledger.service_revenue": "Service Revenue",
   "block.mineledger.computer": "MineLedger Computer",
   "screen.mineledger.title": "MineLedger",
   "screen.mineos.title": "MineOS",

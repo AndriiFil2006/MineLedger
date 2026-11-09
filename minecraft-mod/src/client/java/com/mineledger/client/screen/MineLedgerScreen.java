@@ -1,9 +1,12 @@
 package com.mineledger.client.screen;
 
 import java.util.EnumMap;
+import com.mineledger.client.JournalSession;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.MultiLineTextWidget;
+import net.minecraft.client.gui.components.ScrollableLayout;
+import net.minecraft.client.gui.layouts.LinearLayout;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 
@@ -25,7 +28,6 @@ public final class MineLedgerScreen extends Screen {
     private final MineOsDesktopScreen desktop;
     private final EnumMap<Section, Button> navigation = new EnumMap<>(Section.class);
     private Section selected = Section.COURSES;
-    private MultiLineTextWidget content;
     private int left;
     private int top;
     private int panelWidth;
@@ -49,20 +51,39 @@ public final class MineLedgerScreen extends Screen {
                     .bounds(left + 16 + section.ordinal() * (tabWidth + 6), top + 40, tabWidth, 20).build());
             navigation.put(section, tab);
         }
-        content = addRenderableOnly(new MultiLineTextWidget(left + 28, top + 103,
-                Component.empty(), font).setMaxWidth(panelWidth - 56)
-                .setMaxRows(Math.max(1, (panelHeight - 153) / font.lineHeight)));
+        navigation.forEach((key, button) -> button.active = key != selected);
+        LinearLayout body = LinearLayout.vertical().spacing(10);
+        Component message = switch (selected) {
+            case COURSES -> Component.translatable(selected.key + ".placeholder");
+            case ASSIGNMENTS -> Component.literal("Introductory Journal Entries\n"
+                    + "Practice three Minecraft shop transactions. Choose a debit, a credit, and an emerald amount. "
+                    + "Earn up to 30 learning XP per client session.");
+            case PROGRESS -> Component.literal("Temporary client session progress\n"
+                    + JournalSession.PROGRESS.correctCount() + " / 3 questions correctly answered\n"
+                    + JournalSession.PROGRESS.xp() + " / 30 learning XP\n"
+                    + "Each question awards 10 XP only once. These are learning points, not Minecraft experience. "
+                    + "Nothing is saved; progress resets when Minecraft closes.");
+        };
+        body.addChild(new MultiLineTextWidget(message.copy().withStyle(style -> style.withColor(0x35383D).withoutShadow()),
+                font).setMaxWidth(panelWidth - 76));
+        if (selected == Section.ASSIGNMENTS) {
+            body.addChild(Button.builder(Component.literal("Open Journal Entries"),
+                    button -> minecraft.gui.setScreen(new JournalEntryScreen(this)))
+                    .size(Math.min(220, panelWidth - 76), 20).build());
+        }
+        ScrollableLayout scroll = new ScrollableLayout(minecraft, body, Math.max(1, panelHeight - 153));
+        scroll.arrangeElements();
+        scroll.setX(left + 28);
+        scroll.setY(top + 103);
+        scroll.visitWidgets(this::addRenderableWidget);
         addRenderableWidget(Button.builder(Component.translatable("screen.mineledger.desktop"),
                 button -> minecraft.gui.setScreen(desktop))
                 .bounds(left + 16, top + panelHeight - 32, Math.min(160, panelWidth - 32), 20).build());
-        select(selected);
     }
 
     private void select(Section section) {
         selected = section;
-        navigation.forEach((key, button) -> button.active = key != selected);
-        content.setMessage(Component.translatable(section.key + ".placeholder")
-                .withStyle(style -> style.withColor(0x35383D).withoutShadow()));
+        rebuildWidgets();
     }
 
     @Override
