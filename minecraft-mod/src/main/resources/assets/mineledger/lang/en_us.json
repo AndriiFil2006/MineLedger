@@ -1,6 +1,14 @@
 {
   "block.mineledger.computer": "MineLedger Computer",
   "screen.mineledger.title": "MineLedger",
-  "screen.mineledger.welcome": "Welcome to MineLedger",
-  "screen.mineledger.close": "Close"
+  "screen.mineos.title": "MineOS",
+  "screen.mineos.subtitle": "Your learning desktop",
+  "screen.mineos.shutdown": "Shutdown",
+  "screen.mineledger.desktop": "Back to Desktop",
+  "screen.mineledger.courses": "Courses",
+  "screen.mineledger.assignments": "Assignments",
+  "screen.mineledger.progress": "Progress",
+  "screen.mineledger.courses.placeholder": "Course library placeholder. Future courses will introduce accounting through life in Minecraft. No courses are available yet.",
+  "screen.mineledger.assignments.placeholder": "Assignment board placeholder. Future assignments will appear here. There are no assignments to complete yet.",
+  "screen.mineledger.progress.placeholder": "Progress overview placeholder. Learning milestones will appear here in a future update. No progress is tracked or saved yet."
 }
