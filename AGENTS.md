@@ -32,6 +32,8 @@ Missed mastery questions automatically rotate until mastered; feedback offers on
 no immediate Try Again button. Earned credits never repeat. Original journal practice remains available.
 Completed mastery assignments unlock Recharge Practice: review the full question bank with missed
 questions requeued, no mastery/XP changes and no save writes. Its practice queue is transient.
+Learn / Review Concept opens one original perpetual-inventory lesson for `inventory.purchases_on_credit`,
+including in Recharge. It returns to the same exercise state and never awards XP or writes progress.
 
 - Preserve MineOS's existing appearance and navigation unless the user requests a change.
 - Do not alter computer geometry, textures, blockstates, or registration unless specifically requested.
@@ -51,6 +53,7 @@ questions requeued, no mastery/XP changes and no save writes. Its practice queue
 | --- | --- |
 | Assignment UI, dropdowns, sizing | `src/client/java/com/mineledger/client/screen/JournalEntryScreen.java` |
 | Multiple-choice UI | `src/client/java/com/mineledger/client/screen/ConceptAssignmentScreen.java`; 600-unit logical canvas scaled to 85% or smaller to fit, no scrollbar; transforms rendering and mouse input together, without changing global GUI scale |
+| Concept lessons / return state | `src/main/java/com/mineledger/education/lesson/` holds `ConceptLesson`, `ConceptLessonSource`, `ConceptLessonCatalog`, `IntroConceptLessons`; client `ConceptLessonScreen`; `presentation/PracticeQuestionState` preserves question/selection/feedback. See `CONCEPT_LESSONS.md` and `ConceptLessonTest`. |
 | Assignment presentation widgets | Same screen package: `ConceptProgressStripWidget` (empty/half/full mastery bars), `AssignmentTextPanel` (measured cards), `AnswerOptionButton` (wrapped radio choices), `AssignmentStyle` (white/red palette) |
 | Shared zoom / GUI lifecycle | `ScaledAppScreen` owns viewport fitting, both render hooks, and mouse transforms for all windows; subclasses implement `extractWindowBackground` and call `fitWindow` after layout. `AppScreen` clears orphaned focus; `src/main/java/com/mineledger/presentation/WindowViewport.java` supplies tested coordinate math. |
 | Mastery models, selection, progression, session store | `src/main/java/com/mineledger/accounting/mastery/` (`ConceptProgressionService`, `QuestionSelector`, `LearningSession`); content in `InventoryCreditAssignment.java` and `SupplierPaymentConcept.java` |

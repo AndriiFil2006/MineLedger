@@ -2,10 +2,10 @@ package com.mineledger.client.screen;
 
 import com.mineledger.accounting.mastery.AccountingConcept;
 import com.mineledger.accounting.mastery.ConceptProgressionService;
-import com.mineledger.accounting.mastery.ConceptProgressionService.Submission;
-import com.mineledger.accounting.mastery.MultipleChoiceQuestion;
 import com.mineledger.accounting.mastery.RechargePractice;
 import com.mineledger.client.JournalSession;
+import com.mineledger.education.lesson.IntroConceptLessons;
+import com.mineledger.presentation.PracticeQuestionState;
 
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
@@ -19,9 +19,7 @@ public final class ConceptAssignmentScreen extends ScaledAppScreen {
     private final MineLedgerScreen parent;
     private final ConceptProgressionService service;
     private RechargePractice practice;
-    private MultipleChoiceQuestion question;
-    private String selectedOptionId;
-    private Submission submission;
+    private final PracticeQuestionState state = new PracticeQuestionState();
     private Button submitAnswer;
     private int left;
     private int top;
@@ -43,7 +41,7 @@ public final class ConceptAssignmentScreen extends ScaledAppScreen {
 
     @Override
     protected void init() {
-        if (question == null) question = (practice == null ? service.nextQuestion() : practice.currentQuestion()).orElse(null);
+        if (state.question() == null) state.show((practice == null ? service.nextQuestion() : practice.currentQuestion()).orElse(null));
         // Layout in a readable logical canvas, then zoom this window to fit the actual GUI.
         panelWidth = 600;
         int innerWidth = panelWidth - 28;
@@ -73,11 +71,14 @@ public final class ConceptAssignmentScreen extends ScaledAppScreen {
     }
 
     private AccountingConcept displayedConcept() {
+        var question = state.question();
         return question == null ? service.currentConcept().orElse(null) : service.assignment().concepts().stream()
                 .filter(concept -> concept.id().equals(question.conceptId())).findFirst().orElseThrow();
     }
 
     private LinearLayout body(int contentWidth, AccountingConcept concept) {
+        var question = state.question();
+        var submission = state.submission();
         LinearLayout body = LinearLayout.vertical().spacing(4);
         if (question == null) {
             if (practice != null) {
@@ -98,8 +99,8 @@ public final class ConceptAssignmentScreen extends ScaledAppScreen {
                 question.prompt(), AssignmentStyle.ACCENT));
         for (var option : question.options()) {
             AnswerOptionButton choice = body.addChild(new AnswerOptionButton(font, contentWidth, option.text(),
-                    () -> option.id().equals(selectedOptionId), () -> {
-                        selectedOptionId = option.id();
+                    () -> option.id().equals(state.selectedOptionId()), () -> {
+                        state.select(option.id());
                         submitAnswer.active = true;
                     }));
             choice.active = submission == null;
@@ -128,15 +129,24 @@ public final class ConceptAssignmentScreen extends ScaledAppScreen {
     }
 
     private void actions() {
+        var question = state.question();
+        var submission = state.submission();
         int y = top + panelHeight - 27;
         int actionWidth = Math.min(124, (panelWidth - 86) / 2);
         int right = left + panelWidth - 14;
+        if (question != null) {
+            var lesson = state.lesson(IntroConceptLessons.CATALOG);
+            Button learn = addRenderableWidget(Button.builder(Component.literal(lesson.isPresent() ? "Learn / Review Concept" : "Lesson Unavailable"), button -> {
+                state.lesson(IntroConceptLessons.CATALOG).ifPresent(resource -> minecraft.gui.setScreen(
+                        new ConceptLessonScreen(this, resource, displayedConcept().title())));
+            }).bounds(right - actionWidth * 2 - 6, y, actionWidth, 20).build());
+            learn.active = lesson.isPresent();
+        }
         if (question == null) {
             if (service.completed()) {
                 addRenderableWidget(Button.builder(Component.literal(practice == null ? "Recharge Practice" : "Practice Again"), button -> {
                     practice = new RechargePractice(service);
-                    selectedOptionId = null;
-                    submission = null;
+                    state.clear();
                     rebuildWidgets();
                 }).bounds(right - actionWidth * 2 - 6, y, actionWidth, 20).build());
             }
@@ -144,19 +154,17 @@ public final class ConceptAssignmentScreen extends ScaledAppScreen {
                     .bounds(right - actionWidth, y, actionWidth, 20).build());
         } else if (submission == null) {
             submitAnswer = addRenderableWidget(Button.builder(Component.literal("Submit Answer"), button -> {
-                if (submission != null || selectedOptionId == null) return;
-                submission = practice == null ? service.submit(question.id(), selectedOptionId)
-                        : new Submission(practice.submit(selectedOptionId), false, 0);
+                if (state.submission() != null || state.selectedOptionId() == null) return;
+                state.recordSubmission(practice == null ? service.submit(question.id(), state.selectedOptionId())
+                        : new ConceptProgressionService.Submission(practice.submit(state.selectedOptionId()), false, 0));
                 rebuildWidgets();
             }).bounds(right - actionWidth, y, actionWidth, 20).build());
-            submitAnswer.active = selectedOptionId != null;
+            submitAnswer.active = state.selectedOptionId() != null;
         } else {
             addRenderableWidget(Button.builder(Component.literal("Continue"), button -> {
-                if (submission == null) return;
+                if (state.submission() == null) return;
                 if (practice != null) practice.continuePractice();
-                question = null;
-                selectedOptionId = null;
-                submission = null;
+                state.clear();
                 rebuildWidgets();
             }).bounds(right - actionWidth, y, actionWidth, 20).build());
         }
