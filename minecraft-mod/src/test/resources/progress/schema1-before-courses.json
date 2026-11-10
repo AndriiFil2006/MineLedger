@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "profileId": "11111111-2222-3333-4444-555555555555",
+  "totalAwardedXp": 20,
+  "journalQuestionIds": [],
+  "assignments": {
+    "inventory_fundamentals": {
+      "activeConceptId": "payables.cash_payments",
+      "awardedXp": 20,
+      "rewardedConceptIds": ["inventory.purchases_on_credit"],
+      "concepts": {
+        "inventory.purchases_on_credit": {
+          "correctQuestionIds": ["inventory.shovels", "inventory.books_discount"],
+          "attemptedQuestionIds": ["inventory.shovels", "inventory.books_discount"],
+          "lastAttemptedQuestionId": "inventory.books_discount"
+        },
+        "payables.cash_payments": {
+          "correctQuestionIds": ["payables.shovels_settlement"],
+          "attemptedQuestionIds": ["payables.shovels_settlement"],
+          "lastAttemptedQuestionId": "payables.shovels_settlement"
+        }
+      }
+    }
+  }
+}

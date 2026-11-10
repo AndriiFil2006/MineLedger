@@ -19,12 +19,14 @@ Minecraft Java 26.3; Fabric Loader 0.20.1; Fabric API 0.165.2+26.3; Loom 1.19-SN
 Java 25. `gradle.properties` and `build.gradle` are authoritative if versions change.
 
 A native computer opens MineOS, whose MineLedger app has Courses, Assignments, and Progress.
-Courses is a placeholder. Journal Entries is functional: exactly three fixed Minecraft scenarios,
+Courses organizes Accounting 101 into three units/eight assignments; only 2.1 Journal Entries is
+playable (legacy ID `inventory_fundamentals`). Seven others are Coming Soon with no exercises.
+Independent journal practice is functional: exactly three fixed Minecraft scenarios,
 one debit and one credit sharing an amount, deterministic feedback, retries, completion score,
 and at most 30 learning XP per local profile. Account selectors are expandable dropdown lists
 built from native buttons, not cycle buttons. Every MineOS/app window uses local 85% zoom and
 shrinks further to fit. Measured content replaces scrolling, including expanded journal dropdowns.
-Shop Accounting Foundations adds multiple-choice mastery: credit purchases and paying suppliers,
+Assignment 2.1 retains the existing multiple-choice mastery: credit purchases and paying suppliers,
 three questions each, two distinct correct questions per concept, 20 XP once per concept (40 total).
 Missed mastery questions automatically rotate until mastered; feedback offers only Continue, with
 no immediate Try Again button. Earned credits never repeat. Original journal practice remains available.
@@ -56,6 +58,8 @@ questions requeued, no mastery/XP changes and no save writes. Its practice queue
 | Recharge Practice | `src/main/java/com/mineledger/accounting/mastery/RechargePractice.java`; existing `ConceptAssignmentScreen` has a practice mode; tests in `RechargePracticeTest` and `LocalProgressTest` |
 | Bug audit / outstanding risks | `BUG_AUDIT.md`; coordinate tests in `src/test/java/com/mineledger/presentation/WindowViewportTest.java` |
 | Courses/Assignments/Progress tabs | `src/client/java/com/mineledger/client/screen/MineLedgerScreen.java` |
+| Course hierarchy / routing / counts | `src/main/java/com/mineledger/education/` (`Course`, `Unit`, `CourseCatalog`, `CourseNavigation`, `CourseProgress`, `Accounting101`); `CourseBrowser.java` in client screen package; `COURSES.md` and `CourseHierarchyTest` |
+| Dynamic assignment listing / actions | `education/AssignmentDirectory` supplies grouped entries and ID-based Start/Continue/Recharge selection to both routes; client `AssignmentRows` renders shared rows. Assignments tab uses a bounded native scroll list with fixed Practice / Lab and desktop actions; tests in `AssignmentDirectoryTest`. No assignment-specific GUI routing. |
 | Desktop/app icon | `src/client/java/com/mineledger/client/screen/MineOsDesktopScreen.java`, `MineLedgerAppIcon.java` in the same directory |
 | Right-click client entry | `src/client/java/com/mineledger/client/MineLedgerClient.java` |
 | Profile loading / autosave lifecycle | `src/client/java/com/mineledger/client/JournalSession.java`, `MineLedgerClient.java` (shutdown retry) |

@@ -5,7 +5,9 @@ import java.util.List;
 /** Fixed, manually checked inventory transactions; no generated content or remote services. */
 public final class InventoryCreditAssignment {
     public static final String CONCEPT_ID = "inventory.purchases_on_credit";
-    public static final Assignment ASSIGNMENT = new Assignment("inventory_fundamentals", "Shop Accounting Foundations", List.of(
+    public static final Assignment ASSIGNMENT = new Assignment("inventory_fundamentals", "accounting101.recording_transactions",
+            "Assignment 2.1: Journal Entries", "Practice inventory purchases on credit and payments to suppliers.",
+            Assignment.Availability.AVAILABLE, List.of(
             new AccountingConcept(CONCEPT_ID, "Recording Inventory Purchases on Credit",
                     "Record goods bought for resale when payment is owed to a supplier. "
                     + "Answer two distinct questions correctly to master this concept and earn 20 learning XP.",

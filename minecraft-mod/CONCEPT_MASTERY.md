@@ -22,7 +22,8 @@ The independent `com.mineledger.accounting.mastery` package contains:
   local profile's restored services; new MineLedger screens reuse them. `ProfileLearningProgress`
   saves changes through `ProgressRepository` to local versioned JSON. See `LOCAL_PROGRESS.md`.
 
-`InventoryCreditAssignment` defines Shop Accounting Foundations with two playable concepts and
+`InventoryCreditAssignment` defines Assignment 2.1: Journal Entries (formerly Shop Accounting
+Foundations, same persistent ID `inventory_fundamentals`) with two playable concepts and
 three fixed questions each: Recording Inventory Purchases on Credit and Paying Suppliers. The latter
 is authored in `SupplierPaymentConcept`. Each concept awards 20 XP, for 40 assignment XP total.
 The GUI uses a compact centered window laid out on a 600-unit logical canvas. Its header shows MineLedger,

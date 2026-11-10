@@ -3,10 +3,16 @@ package com.mineledger.client.screen;
 import java.util.EnumMap;
 import java.util.stream.Collectors;
 import com.mineledger.client.JournalSession;
-import com.mineledger.accounting.mastery.InventoryCreditAssignment;
+import com.mineledger.accounting.mastery.LearningSession;
+import com.mineledger.accounting.IntroJournalAssignment;
+import com.mineledger.education.Accounting101;
+import com.mineledger.education.CourseProgress;
+import com.mineledger.education.AssignmentDirectory;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.MultiLineTextWidget;
+import net.minecraft.client.gui.components.ScrollableLayout;
+import net.minecraft.client.gui.components.AbstractScrollArea;
 import net.minecraft.client.gui.layouts.LinearLayout;
 import net.minecraft.network.chat.Component;
 
@@ -26,6 +32,10 @@ public final class MineLedgerScreen extends ScaledAppScreen {
     }
 
     private final MineOsDesktopScreen desktop;
+    private final CourseBrowser courses = new CourseBrowser(Accounting101.CATALOG);
+    private final AssignmentDirectory assignments = new AssignmentDirectory(Accounting101.CATALOG);
+    private ScrollableLayout assignmentList;
+    private double assignmentScroll;
     private final EnumMap<Section, Button> navigation = new EnumMap<>(Section.class);
     private Section selected = Section.COURSES;
     private int left;
@@ -40,6 +50,8 @@ public final class MineLedgerScreen extends ScaledAppScreen {
 
     @Override
     protected void init() {
+        if (assignmentList != null) assignmentScroll = assignmentList.getScrollAmount();
+        assignmentList = null;
         panelWidth = 600;
         left = 0;
         top = 0;
@@ -51,54 +63,82 @@ public final class MineLedgerScreen extends ScaledAppScreen {
             navigation.put(section, tab);
         }
         navigation.forEach((key, button) -> button.active = key != selected);
-        var mastery = JournalSession.mastery().open(InventoryCreditAssignment.ASSIGNMENT);
+        var session = JournalSession.mastery();
         LinearLayout body = LinearLayout.vertical().spacing(10);
         Component message = switch (selected) {
-            case COURSES -> Component.translatable(selected.key + ".placeholder");
-            case ASSIGNMENTS -> Component.literal(mastery.assignment().title() + "\n"
-                    + (mastery.completed() ? "Completed! Recharge Practice is available with no extra XP.\n" : "")
-                    + "Master credit purchases and paying suppliers. Each concept needs two distinct correct answers. "
-                    + "Retry as often as needed. Earn up to " + mastery.assignment().concepts().size() * 20
-                    + " learning XP.\n\nIntroductory Journal Entries\n"
-                    + "Practice three Minecraft shop transactions. Choose a debit, a credit, and an emerald amount. "
-                    + "Earn up to 30 learning XP for this profile.");
-            case PROGRESS -> Component.literal("Local profile progress\n"
-                    + "Concept mastery: " + mastery.completedConcepts()
-                    + " / " + mastery.assignment().concepts().size() + " concepts completed; " + mastery.xp()
-                    + " / " + mastery.assignment().concepts().size() * 20 + " mastery XP\n"
-                    + mastery.assignment().concepts().stream().map(concept -> concept.title() + ": "
-                            + mastery.progress().concept(concept.id()).credits() + "/" + concept.requiredCorrectAnswers())
-                            .collect(Collectors.joining("\n")) + "\n\nJournal practice:\n"
-                    + JournalSession.progress().correctCount() + " / 3 questions correctly answered\n"
-                    + JournalSession.progress().xp() + " / 30 learning XP\n"
-                    + "Each question awards 10 XP only once. These are learning points, not Minecraft experience. "
-                    + JournalSession.storageStatus());
+            case COURSES, ASSIGNMENTS -> Component.empty();
+            case PROGRESS -> progressMessage(session);
         };
-        body.addChild(new MultiLineTextWidget(message.copy().withStyle(style -> style.withColor(0x35383D).withoutShadow()),
-                font).setMaxWidth(panelWidth - 76));
-        if (selected == Section.ASSIGNMENTS) {
-            if (mastery.completed()) {
-                body.addChild(Button.builder(Component.literal("Recharge Practice"),
-                        button -> minecraft.gui.setScreen(new ConceptAssignmentScreen(this, mastery, true)))
-                        .size(Math.min(220, panelWidth - 76), 20).build());
+        if (selected == Section.COURSES) {
+            courses.populate(body, panelWidth - 76, font, JournalSession.mastery(), this::rebuildWidgets,
+                    (service, recharge) -> minecraft.gui.setScreen(new ConceptAssignmentScreen(this, service, recharge)));
+        } else if (selected == Section.ASSIGNMENTS) {
+            String previousCourse = null;
+            for (var group : assignments.groups(session)) {
+                if (!group.course().id().equals(previousCourse)) {
+                    AssignmentRows.text(body, panelWidth - 76, font, group.course().title());
+                    previousCourse = group.course().id();
+                }
+                AssignmentRows.text(body, panelWidth - 76, font, "Unit " + group.unit().number() + ": " + group.unit().title());
+                AssignmentRows.append(body, panelWidth - 76, font, group.entries(), id -> {
+                    assignments.select(id, session).ifPresent(item -> {
+                        if (assignmentList != null) assignmentScroll = assignmentList.getScrollAmount();
+                        minecraft.gui.setScreen(new ConceptAssignmentScreen(this, item.service(), item.recharge()));
+                    });
+                });
             }
-            body.addChild(Button.builder(Component.literal("Open Concept Mastery"),
-                    button -> minecraft.gui.setScreen(new ConceptAssignmentScreen(this,
-                            mastery)))
-                    .size(Math.min(220, panelWidth - 76), 20).build());
-            body.addChild(Button.builder(Component.literal("Open Journal Entries"),
-                    button -> minecraft.gui.setScreen(new JournalEntryScreen(this)))
-                    .size(Math.min(220, panelWidth - 76), 20).build());
+            if (Accounting101.CATALOG.courses().isEmpty()) AssignmentRows.text(body, panelWidth - 76, font, "No assignments available yet.");
+        } else {
+            body.addChild(new MultiLineTextWidget(message.copy().withStyle(style -> style.withColor(0x35383D).withoutShadow()),
+                    font).setMaxWidth(panelWidth - 76));
         }
         body.arrangeElements();
-        panelHeight = Math.max(220, body.getHeight() + 153);
+        panelHeight = selected == Section.ASSIGNMENTS ? Math.max(220, Math.min(360, body.getHeight() + 153))
+                : Math.max(220, body.getHeight() + 153);
         fitWindow(panelWidth, panelHeight);
-        body.setX(left + 28);
-        body.setY(top + 103);
-        body.visitWidgets(this::addRenderableWidget);
+        if (selected == Section.ASSIGNMENTS && body.getHeight() > panelHeight - 153) {
+            assignmentList = new ScrollableLayout(minecraft, body, panelHeight - 153, ScrollableLayout.ReserveStrategy.RIGHT);
+            assignmentList.arrangeElements();
+            assignmentList.setX(left + 28);
+            assignmentList.setY(top + 103);
+            assignmentList.visitWidgets(widget -> {
+                addRenderableWidget(widget);
+                if (widget instanceof AbstractScrollArea area) area.setScrollAmount(assignmentScroll);
+            });
+        } else {
+            body.setX(left + 28);
+            body.setY(top + 103);
+            body.visitWidgets(this::addRenderableWidget);
+        }
+        if (selected == Section.ASSIGNMENTS) {
+            addRenderableWidget(Button.builder(Component.literal("Practice / Lab: Journal Entries"),
+                    button -> minecraft.gui.setScreen(new JournalEntryScreen(this)))
+                    .bounds(left + panelWidth - 252, top + panelHeight - 32, 236, 20).build());
+        }
         addRenderableWidget(Button.builder(Component.translatable("screen.mineledger.desktop"),
                 button -> minecraft.gui.setScreen(desktop))
                 .bounds(left + 16, top + panelHeight - 32, Math.min(160, panelWidth - 32), 20).build());
+    }
+
+    private Component progressMessage(LearningSession session) {
+        CourseProgress totals = new CourseProgress(session);
+        StringBuilder text = new StringBuilder("Local profile progress\n");
+        for (var course : Accounting101.CATALOG.courses()) {
+            text.append(course.title()).append('\n').append(totals.course(course).assignmentsLabel()).append("\n\n");
+        }
+        for (var assignment : Accounting101.CATALOG.availableAssignments()) {
+            var service = session.open(assignment);
+            text.append(assignment.title()).append('\n').append(service.completedConcepts()).append(" / ")
+                    .append(assignment.concepts().size()).append(" concepts completed; ").append(service.xp()).append(" / ")
+                    .append(assignment.concepts().size() * 20).append(" mastery XP\n")
+                    .append(assignment.concepts().stream().map(concept -> concept.title() + ": "
+                            + service.progress().concept(concept.id()).credits() + "/" + concept.requiredCorrectAnswers())
+                            .collect(Collectors.joining("\n"))).append("\n\n");
+        }
+        text.append("Practice / Lab: Journal Entries\n").append(JournalSession.progress().correctCount()).append(" / ")
+                .append(IntroJournalAssignment.QUESTIONS.size()).append(" questions correct; ").append(JournalSession.progress().xp())
+                .append(" learning XP. Each lab question awards 10 XP only once.\n").append(JournalSession.storageStatus());
+        return Component.literal(text.toString());
     }
 
     private void select(Section section) {
@@ -120,7 +160,8 @@ public final class MineLedgerScreen extends ScaledAppScreen {
 
     @Override
     public void onClose() {
-        minecraft.gui.setScreen(desktop);
+        if (selected == Section.COURSES && courses.back()) rebuildWidgets();
+        else minecraft.gui.setScreen(desktop);
     }
 
     @Override

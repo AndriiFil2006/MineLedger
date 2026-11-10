@@ -20,6 +20,7 @@ public final class ConceptProgressionService {
     }
 
     public ConceptProgressionService(Assignment assignment, AssignmentProgress restored, Runnable onChange) {
+        if (!assignment.available()) throw new IllegalArgumentException("This assignment is Coming Soon");
         this.assignment = assignment;
         validateRestored(assignment, restored);
         progress = restored;

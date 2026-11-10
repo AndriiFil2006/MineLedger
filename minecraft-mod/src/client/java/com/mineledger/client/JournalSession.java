@@ -3,12 +3,11 @@ package com.mineledger.client;
 import com.mineledger.accounting.JournalProgress;
 import com.mineledger.accounting.mastery.LearningSession;
 import com.mineledger.accounting.IntroJournalAssignment;
-import com.mineledger.accounting.mastery.InventoryCreditAssignment;
+import com.mineledger.education.Accounting101;
 import com.mineledger.progress.JsonProgressRepository;
 import com.mineledger.progress.ProfileLearningProgress;
 import com.mineledger.MineLedger;
 import java.nio.charset.StandardCharsets;
-import java.util.List;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -29,7 +28,7 @@ public final class JournalSession {
             save();
             current = profiles.computeIfAbsent(id, profileId -> new ProfileLearningProgress(profileId,
                     new JsonProgressRepository(client.gameDirectory.toPath()),
-                    List.of(InventoryCreditAssignment.ASSIGNMENT), IntroJournalAssignment.QUESTIONS.stream()
+                    Accounting101.CATALOG.availableAssignments(), IntroJournalAssignment.QUESTIONS.stream()
                             .map(question -> question.id()).collect(Collectors.toSet()),
                     message -> MineLedger.LOGGER.warn("MineLedger progress: {}", message)));
         }
