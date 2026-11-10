@@ -20,8 +20,11 @@ validated. There is no reflection-based deserialization, networking or executabl
 in a future milestone without coupling a backend to Minecraft rendering; no backend is implemented.
 Add future lessons to the catalog by concept ID, never question order. Duplicate lesson IDs or
 multiple lessons for the same concept are rejected to avoid ambiguous resources.
+Content edits now belong in curriculum JSON; the loader constructs the catalog from those definitions.
 
-`IntroConceptLessons` supplies exactly one original lesson:
+The curriculum JSON's `lessons` table supplies exactly one original lesson, resolved through the
+validated concept `lesson_id` reference. `IntroConceptLessons` is now a compatibility lookup only
+(see `CURRICULUM_ARCHITECTURE.md`):
 
 - ID: `lesson.inventory.purchases_on_credit.perpetual`
 - Concept: `inventory.purchases_on_credit`

@@ -42,6 +42,8 @@ This is editable, local MVP learning data, not trusted multiplayer or assessment
 Course organization is catalog metadata, not persisted progress. The existing assignment key
 `inventory_fundamentals` is attached to Accounting 101, Unit 2, Assignment 2.1: Journal Entries.
 No schema change or file rewrite is needed to preserve older progress; see `COURSES.md`.
+Curriculum now comes from separate bundled JSON; its schema version is independent of this save
+format. See `CURRICULUM_ARCHITECTURE.md`; no progress migration accompanies that content refactor.
 
 Example after crediting only the first inventory question (other unchanged concepts are implicit):
 

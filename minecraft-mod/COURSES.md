@@ -4,6 +4,8 @@
 
 `com.mineledger.education` contains immutable `Course` and `Unit` models, a validated `CourseCatalog`,
 ID-based `CourseNavigation`, `CourseProgress` aggregation and the fixed `Accounting101` catalog.
+The definitions now load from versioned curriculum JSON; `Accounting101` is a stable-ID lookup
+handle rather than a Java content definition. See `CURRICULUM_ARCHITECTURE.md`.
 The existing `accounting.mastery.Assignment` now includes its parent unit ID, description and
 AVAILABLE/COMING_SOON availability. Its compatibility constructor remains for standalone fixtures.
 Concept and question models, answer keys, grading, mastery thresholds and reward rules are unchanged.

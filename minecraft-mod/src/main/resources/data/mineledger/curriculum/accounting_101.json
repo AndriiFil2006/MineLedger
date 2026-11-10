@@ -1,0 +1,423 @@
+{
+  "schema_version": 1,
+  "courses": [
+    {
+      "id": "accounting101",
+      "title": "Accounting 101 — Financial Accounting",
+      "description": "Explore financial accounting through Minecraft businesses, from fundamentals to adjusting entries.",
+      "unit_ids": [
+        "accounting101.fundamentals",
+        "accounting101.recording_transactions",
+        "accounting101.adjusting_entries"
+      ]
+    }
+  ],
+  "units": [
+    {
+      "id": "accounting101.fundamentals",
+      "parent_course_id": "accounting101",
+      "title": "Accounting Fundamentals",
+      "description": "Build the foundations of financial accounting.",
+      "order": 1,
+      "assignment_ids": [
+        "accounting101.accounting_equation",
+        "accounting101.assets_liabilities_equity",
+        "accounting101.debit_credit_rules"
+      ]
+    },
+    {
+      "id": "accounting101.recording_transactions",
+      "parent_course_id": "accounting101",
+      "title": "Recording Transactions",
+      "description": "Record transactions and organize accounting records.",
+      "order": 2,
+      "assignment_ids": [
+        "inventory_fundamentals",
+        "accounting101.posting_ledger",
+        "accounting101.trial_balance"
+      ]
+    },
+    {
+      "id": "accounting101.adjusting_entries",
+      "parent_course_id": "accounting101",
+      "title": "Adjusting Entries",
+      "description": "Explore period-end accounting adjustments.",
+      "order": 3,
+      "assignment_ids": [
+        "accounting101.accruals",
+        "accounting101.deferrals"
+      ]
+    }
+  ],
+  "assignments": [
+    {
+      "id": "accounting101.accounting_equation",
+      "parent_unit_id": "accounting101.fundamentals",
+      "title": "Assignment 1.1: The Accounting Equation",
+      "description": "Coming Soon: The Accounting Equation. No exercises are available yet.",
+      "availability": "coming_soon",
+      "concept_ids": []
+    },
+    {
+      "id": "accounting101.assets_liabilities_equity",
+      "parent_unit_id": "accounting101.fundamentals",
+      "title": "Assignment 1.2: Assets, Liabilities, and Equity",
+      "description": "Coming Soon: Assets, Liabilities, and Equity. No exercises are available yet.",
+      "availability": "coming_soon",
+      "concept_ids": []
+    },
+    {
+      "id": "accounting101.debit_credit_rules",
+      "parent_unit_id": "accounting101.fundamentals",
+      "title": "Assignment 1.3: Debit and Credit Rules",
+      "description": "Coming Soon: Debit and Credit Rules. No exercises are available yet.",
+      "availability": "coming_soon",
+      "concept_ids": []
+    },
+    {
+      "id": "inventory_fundamentals",
+      "parent_unit_id": "accounting101.recording_transactions",
+      "title": "Assignment 2.1: Journal Entries",
+      "description": "Practice inventory purchases on credit and payments to suppliers.",
+      "availability": "available",
+      "concept_ids": [
+        "inventory.purchases_on_credit",
+        "payables.cash_payments"
+      ]
+    },
+    {
+      "id": "accounting101.posting_ledger",
+      "parent_unit_id": "accounting101.recording_transactions",
+      "title": "Assignment 2.2: Posting to the Ledger",
+      "description": "Coming Soon: Posting to the Ledger. No exercises are available yet.",
+      "availability": "coming_soon",
+      "concept_ids": []
+    },
+    {
+      "id": "accounting101.trial_balance",
+      "parent_unit_id": "accounting101.recording_transactions",
+      "title": "Assignment 2.3: Trial Balance",
+      "description": "Coming Soon: Trial Balance. No exercises are available yet.",
+      "availability": "coming_soon",
+      "concept_ids": []
+    },
+    {
+      "id": "accounting101.accruals",
+      "parent_unit_id": "accounting101.adjusting_entries",
+      "title": "Assignment 3.1: Accruals",
+      "description": "Coming Soon: Accruals. No exercises are available yet.",
+      "availability": "coming_soon",
+      "concept_ids": []
+    },
+    {
+      "id": "accounting101.deferrals",
+      "parent_unit_id": "accounting101.adjusting_entries",
+      "title": "Assignment 3.2: Deferrals",
+      "description": "Coming Soon: Deferrals. No exercises are available yet.",
+      "availability": "coming_soon",
+      "concept_ids": []
+    }
+  ],
+  "concepts": [
+    {
+      "id": "inventory.purchases_on_credit",
+      "assignment_id": "inventory_fundamentals",
+      "title": "Recording Inventory Purchases on Credit",
+      "description": "Record goods bought for resale when payment is owed to a supplier. Answer two distinct questions correctly to master this concept and earn 20 learning XP.",
+      "required_correct_answers": 2,
+      "lesson_id": "lesson.inventory.purchases_on_credit.perpetual",
+      "question_ids": [
+        "inventory.shovels",
+        "inventory.books_discount",
+        "inventory.lanterns_delivery"
+      ]
+    },
+    {
+      "id": "payables.cash_payments",
+      "assignment_id": "inventory_fundamentals",
+      "title": "Paying Suppliers",
+      "description": "Record cash payments against existing supplier debts. Master two distinct questions to earn 20 learning XP. You can retry missed questions as often as needed.",
+      "required_correct_answers": 2,
+      "lesson_id": null,
+      "question_ids": [
+        "payables.shovels_settlement",
+        "payables.books_partial",
+        "payables.two_invoices"
+      ]
+    }
+  ],
+  "questions": [
+    {
+      "id": "inventory.shovels",
+      "concept_id": "inventory.purchases_on_credit",
+      "type": "multiple_choice",
+      "prompt": "Steve purchases four diamond shovels at 15 emeralds each on credit for resale in his shop. No cash is paid. Which entry records the purchase?",
+      "correct_answer_id": "shovels.inventory_payable",
+      "explanation": "Four shovels x 15 = 60 emeralds. Goods held for resale increase Inventory (debit). The unpaid supplier balance increases Accounts Payable (credit). Cash does not change.",
+      "answer_options": [
+        {
+          "id": "shovels.cash",
+          "text": "Debit Inventory 60; Credit Cash 60."
+        },
+        {
+          "id": "shovels.inventory_payable",
+          "text": "Debit Inventory 60; Credit Accounts Payable 60."
+        },
+        {
+          "id": "shovels.expense",
+          "text": "Debit Supplies Expense 60; Credit Accounts Payable 60."
+        },
+        {
+          "id": "shovels.reversed",
+          "text": "Debit Accounts Payable 60; Credit Inventory 60."
+        }
+      ]
+    },
+    {
+      "id": "inventory.books_discount",
+      "concept_id": "inventory.purchases_on_credit",
+      "type": "multiple_choice",
+      "prompt": "Alex's village bookshop receives 10 books for resale at 9 emeralds each. The supplier grants an immediate 10-emerald trade discount on this invoice. The entire net invoice is due next week. Which entry records receipt of the books?",
+      "correct_answer_id": "books.inventory_payable",
+      "explanation": "10 x 9 = 90 emeralds before the trade discount; 90 - 10 = 80 owed. An immediate trade discount reduces inventory's purchase cost. Debit Inventory 80 and credit Accounts Payable 80. This is a purchase, not a sale or a cash payment.",
+      "answer_options": [
+        {
+          "id": "books.gross",
+          "text": "Debit Inventory 90; Credit Accounts Payable 90."
+        },
+        {
+          "id": "books.cash",
+          "text": "Debit Inventory 80; Credit Cash 80."
+        },
+        {
+          "id": "books.revenue",
+          "text": "Debit Accounts Receivable 80; Credit Sales Revenue 80."
+        },
+        {
+          "id": "books.inventory_payable",
+          "text": "Debit Inventory 80; Credit Accounts Payable 80."
+        }
+      ]
+    },
+    {
+      "id": "inventory.lanterns_delivery",
+      "concept_id": "inventory.purchases_on_credit",
+      "type": "multiple_choice",
+      "prompt": "A village trading shop receives five lanterns at 16 emeralds each for resale. The supplier's invoice also includes 6 emeralds to deliver them to the shop. The shop owes the entire invoice; nothing has been paid. Include delivery in inventory cost. Which entry is correct?",
+      "correct_answer_id": "lanterns.inventory_payable",
+      "explanation": "Five lanterns x 16 = 80 emeralds; add 6 delivery = 86. Delivery to bring purchased goods to their location is part of inventory cost. Debit Inventory 86 and credit Accounts Payable 86 for the wholly unpaid invoice.",
+      "answer_options": [
+        {
+          "id": "lanterns.inventory_payable",
+          "text": "Debit Inventory 86; Credit Accounts Payable 86."
+        },
+        {
+          "id": "lanterns.goods_only",
+          "text": "Debit Inventory 80; Credit Accounts Payable 80."
+        },
+        {
+          "id": "lanterns.cash",
+          "text": "Debit Inventory 86; Credit Cash 86."
+        },
+        {
+          "id": "lanterns.expense",
+          "text": "Debit Delivery Expense 86; Credit Accounts Payable 86."
+        }
+      ]
+    },
+    {
+      "id": "payables.shovels_settlement",
+      "concept_id": "payables.cash_payments",
+      "type": "multiple_choice",
+      "prompt": "Steve already recorded 60 emeralds owed for diamond shovels. He now pays the supplier all 60 emeralds in cash, with no discount. Which entry records this payment?",
+      "correct_answer_id": "settlement.payable_cash",
+      "explanation": "The inventory purchase was already recorded. Paying the debt decreases Accounts Payable with a 60-emerald debit and decreases Cash with a 60-emerald credit. Do not record inventory again.",
+      "answer_options": [
+        {
+          "id": "settlement.inventory",
+          "text": "Debit Inventory 60; Credit Cash 60."
+        },
+        {
+          "id": "settlement.reversed",
+          "text": "Debit Cash 60; Credit Accounts Payable 60."
+        },
+        {
+          "id": "settlement.payable_cash",
+          "text": "Debit Accounts Payable 60; Credit Cash 60."
+        },
+        {
+          "id": "settlement.expense",
+          "text": "Debit Supplies Expense 60; Credit Cash 60."
+        }
+      ]
+    },
+    {
+      "id": "payables.books_partial",
+      "concept_id": "payables.cash_payments",
+      "type": "multiple_choice",
+      "prompt": "Alex's bookshop owes its supplier 80 emeralds for books already received and recorded. Alex pays 30 emeralds in cash now and will pay the remaining 50 later. Which entry records today's payment?",
+      "correct_answer_id": "partial.payable_cash",
+      "explanation": "Record only the 30 emeralds paid today: debit Accounts Payable 30 and credit Cash 30. The unpaid liability remains 80 - 30 = 50 emeralds. No new inventory or expense arises.",
+      "answer_options": [
+        {
+          "id": "partial.full_balance",
+          "text": "Debit Accounts Payable 80; Credit Cash 80."
+        },
+        {
+          "id": "partial.payable_cash",
+          "text": "Debit Accounts Payable 30; Credit Cash 30."
+        },
+        {
+          "id": "partial.remaining",
+          "text": "Debit Accounts Payable 50; Credit Cash 50."
+        },
+        {
+          "id": "partial.inventory",
+          "text": "Debit Inventory 30; Credit Cash 30."
+        }
+      ]
+    },
+    {
+      "id": "payables.two_invoices",
+      "concept_id": "payables.cash_payments",
+      "type": "multiple_choice",
+      "prompt": "A village trading shop has two already-recorded supplier invoices, for 20 and 16 emeralds. It settles both with one cash payment, without discounts. Which combined payment entry is correct?",
+      "correct_answer_id": "invoices.payable_cash",
+      "explanation": "20 + 16 = 36 emeralds paid. Debit Accounts Payable 36 to remove the two recorded debts and credit Cash 36 for the payment. Settling supplier invoices does not create revenue or a new expense.",
+      "answer_options": [
+        {
+          "id": "invoices.revenue",
+          "text": "Debit Cash 36; Credit Service Revenue 36."
+        },
+        {
+          "id": "invoices.one_only",
+          "text": "Debit Accounts Payable 20; Credit Cash 20."
+        },
+        {
+          "id": "invoices.expense",
+          "text": "Debit Inventory Expense 36; Credit Cash 36."
+        },
+        {
+          "id": "invoices.payable_cash",
+          "text": "Debit Accounts Payable 36; Credit Cash 36."
+        }
+      ]
+    },
+    {
+      "id": "journal.inventory_on_credit",
+      "lab_id": "intro_journal_practice",
+      "type": "journal_entry",
+      "prompt": "Steve purchases 4 diamond shovels at 15 emeralds each on credit to resell in his shop.",
+      "explanation": "The shovels are inventory held for resale. Debit Inventory for 4 x 15 = 60 emeralds to increase this asset. Credit Accounts Payable 60 because Steve owes the supplier; no cash was paid.",
+      "correct_debit_account": "INVENTORY",
+      "correct_credit_account": "ACCOUNTS_PAYABLE",
+      "correct_amount": "60",
+      "debit_accounts": [
+        "CASH",
+        "INVENTORY",
+        "ACCOUNTS_PAYABLE",
+        "ADVERTISING_EXPENSE",
+        "SERVICE_REVENUE"
+      ],
+      "credit_accounts": [
+        "CASH",
+        "INVENTORY",
+        "ACCOUNTS_PAYABLE",
+        "ADVERTISING_EXPENSE",
+        "SERVICE_REVENUE"
+      ]
+    },
+    {
+      "id": "journal.cash_advertising",
+      "lab_id": "intro_journal_practice",
+      "type": "journal_entry",
+      "prompt": "Alex pays 25 emeralds in cash for advertising her village bakery.",
+      "explanation": "Debit Advertising Expense 25 emeralds to recognize the cost of advertising. Credit Cash 25 because paying cash decreases an asset.",
+      "correct_debit_account": "ADVERTISING_EXPENSE",
+      "correct_credit_account": "CASH",
+      "correct_amount": "25",
+      "debit_accounts": [
+        "CASH",
+        "INVENTORY",
+        "ACCOUNTS_PAYABLE",
+        "ADVERTISING_EXPENSE",
+        "SERVICE_REVENUE"
+      ],
+      "credit_accounts": [
+        "CASH",
+        "INVENTORY",
+        "ACCOUNTS_PAYABLE",
+        "ADVERTISING_EXPENSE",
+        "SERVICE_REVENUE"
+      ]
+    },
+    {
+      "id": "journal.cash_services",
+      "lab_id": "intro_journal_practice",
+      "type": "journal_entry",
+      "prompt": "A village shop sells services to villagers for 80 emeralds cash.",
+      "explanation": "Debit Cash 80 emeralds because the shop receives cash, increasing an asset. Credit Service Revenue 80 to recognize revenue earned by providing services.",
+      "correct_debit_account": "CASH",
+      "correct_credit_account": "SERVICE_REVENUE",
+      "correct_amount": "80",
+      "debit_accounts": [
+        "CASH",
+        "INVENTORY",
+        "ACCOUNTS_PAYABLE",
+        "ADVERTISING_EXPENSE",
+        "SERVICE_REVENUE"
+      ],
+      "credit_accounts": [
+        "CASH",
+        "INVENTORY",
+        "ACCOUNTS_PAYABLE",
+        "ADVERTISING_EXPENSE",
+        "SERVICE_REVENUE"
+      ]
+    }
+  ],
+  "lessons": [
+    {
+      "id": "lesson.inventory.purchases_on_credit.perpetual",
+      "concept_id": "inventory.purchases_on_credit",
+      "title": "Recording Inventory Purchases on Credit",
+      "learning_objective": "Record inventory acquired on credit using the perpetual inventory system.",
+      "explanation": "Inventory is an asset: it represents goods a business holds for resale. Under the perpetual inventory system, record a purchase directly in Inventory when the goods are acquired. Buying on credit means the supplier has not been paid yet. The business receives an asset and takes on a liability called Accounts Payable.",
+      "takeaway": "Goods for resale received now, payment owed later: debit Inventory and credit Accounts Payable for the same cost.",
+      "accounting_rules": [
+        "Inventory is an asset; goods bought for resale increase Inventory.",
+        "Assets increase with debits, so debit Inventory for the purchase cost.",
+        "Accounts Payable is a liability: an obligation to pay the supplier later.",
+        "Liabilities increase with credits, so credit Accounts Payable for the amount owed.",
+        "A credit purchase does not use cash at the purchase date.",
+        "Total debits must equal total credits."
+      ],
+      "common_mistakes": [
+        "Do not credit Cash: no emeralds leave the business when this credit purchase is recorded.",
+        "Do not debit Equipment: these shovels are held for resale. Tools kept for the shop's own long-term use would be considered differently; the purpose of the purchase matters.",
+        "Do not record a purchase expense instead of Inventory for this perpetual-inventory example."
+      ],
+      "worked_examples": [
+        {
+          "title": "Steve restocks his shop",
+          "scenario": "Steve purchases 4 diamond shovels at 15 emeralds each on credit for resale. He pays nothing today.",
+          "calculation": "4 × 15 = 60 emeralds.",
+          "debit_entry": "Debit Inventory 60.",
+          "credit_entry": "Credit Accounts Payable 60.",
+          "explanation": "The debit increases the shop's inventory asset by 60 emeralds. The credit increases the amount owed to the supplier by 60. Both sides balance. Paying the supplier later is a separate transaction."
+        }
+      ]
+    }
+  ],
+  "labs": [
+    {
+      "id": "intro_journal_practice",
+      "title": "Introductory Journal Entries",
+      "question_ids": [
+        "journal.inventory_on_credit",
+        "journal.cash_advertising",
+        "journal.cash_services"
+      ]
+    }
+  ]
+}

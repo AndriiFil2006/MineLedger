@@ -44,6 +44,17 @@ test {
 	useJUnit()
 }
 
+tasks.register('validateCurriculum', JavaExec) {
+	group = 'verification'
+	description = 'Validate bundled curriculum or a JSON file supplied with --args.'
+	classpath = sourceSets.main.runtimeClasspath
+	mainClass = 'com.mineledger.curriculum.ValidateCurriculum'
+}
+
+tasks.named('check') {
+	dependsOn tasks.named('validateCurriculum')
+}
+
 processResources {
 	def version = project.version
 	inputs.property "version", version

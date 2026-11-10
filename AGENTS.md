@@ -49,14 +49,20 @@ including in Recharge. It returns to the same exercise state and never awards XP
 
 ## File map (paths below are relative to minecraft-mod/)
 
+Curriculum is now JSON-driven: `src/main/resources/data/mineledger/curriculum/accounting_101.json`
+is the sole content source. `curriculum/` in the main Java package contains loading/repository/validation
+code. Old content classes are stable-ID lookup handles only; do not reintroduce Java question/lesson
+literals. Read `CURRICULUM_ARCHITECTURE.md` for schema, references, backend import and migration policy.
+`./gradlew.bat validateCurriculum` validates bundled data (or `--args="path.json"`); `build` includes it.
+
 | Task | Read first |
 | --- | --- |
 | Assignment UI, dropdowns, sizing | `src/client/java/com/mineledger/client/screen/JournalEntryScreen.java` |
 | Multiple-choice UI | `src/client/java/com/mineledger/client/screen/ConceptAssignmentScreen.java`; 600-unit logical canvas scaled to 85% or smaller to fit, no scrollbar; transforms rendering and mouse input together, without changing global GUI scale |
-| Concept lessons / return state | `src/main/java/com/mineledger/education/lesson/` holds `ConceptLesson`, `ConceptLessonSource`, `ConceptLessonCatalog`, `IntroConceptLessons`; client `ConceptLessonScreen`; `presentation/PracticeQuestionState` preserves question/selection/feedback. See `CONCEPT_LESSONS.md` and `ConceptLessonTest`. |
+| Concept lessons / return state | Lesson content is in curriculum JSON; `education/lesson/` contains typed models/catalog and compatibility lookup. Client `ConceptLessonScreen`; `presentation/PracticeQuestionState` preserves selection/feedback. See `CONCEPT_LESSONS.md` and `ConceptLessonTest`. |
 | Assignment presentation widgets | Same screen package: `ConceptProgressStripWidget` (empty/half/full mastery bars), `AssignmentTextPanel` (measured cards), `AnswerOptionButton` (wrapped radio choices), `AssignmentStyle` (white/red palette) |
 | Shared zoom / GUI lifecycle | `ScaledAppScreen` owns viewport fitting, both render hooks, and mouse transforms for all windows; subclasses implement `extractWindowBackground` and call `fitWindow` after layout. `AppScreen` clears orphaned focus; `src/main/java/com/mineledger/presentation/WindowViewport.java` supplies tested coordinate math. |
-| Mastery models, selection, progression, session store | `src/main/java/com/mineledger/accounting/mastery/` (`ConceptProgressionService`, `QuestionSelector`, `LearningSession`); content in `InventoryCreditAssignment.java` and `SupplierPaymentConcept.java` |
+| Mastery models, selection, progression, session store | `src/main/java/com/mineledger/accounting/mastery/` (`ConceptProgressionService`, `QuestionSelector`, `LearningSession`); content in curriculum JSON, original content class names remain lookup-only handles |
 | Mastery tests / manual checks | `src/test/java/com/mineledger/accounting/mastery/ConceptMasteryTest.java`, `CONCEPT_MASTERY.md` |
 | Recharge Practice | `src/main/java/com/mineledger/accounting/mastery/RechargePractice.java`; existing `ConceptAssignmentScreen` has a practice mode; tests in `RechargePracticeTest` and `LocalProgressTest` |
 | Bug audit / outstanding risks | `BUG_AUDIT.md`; coordinate tests in `src/test/java/com/mineledger/presentation/WindowViewportTest.java` |
@@ -68,7 +74,7 @@ including in Recharge. It returns to the same exercise state and never awards XP
 | Profile loading / autosave lifecycle | `src/client/java/com/mineledger/client/JournalSession.java`, `MineLedgerClient.java` (shutdown retry) |
 | JSON persistence / format / tests | `src/main/java/com/mineledger/progress/` (`ProgressRepository`, `JsonProgressRepository`, `ProfileLearningProgress`, `ProfileProgress`); `LOCAL_PROGRESS.md`; `src/test/java/com/mineledger/progress/LocalProgressTest.java` |
 | Models, grader, XP deduplication | `src/main/java/com/mineledger/accounting/` (`AccountingQuestion`, `AccountingAnswer`, `AccountingResult`, `Account`, `AccountingGrader`, `JournalProgress`) |
-| Fixed questions and explanations | `src/main/java/com/mineledger/accounting/IntroJournalAssignment.java` |
+| Fixed questions and explanations | Curriculum JSON `questions` table; `IntroJournalAssignment.java` is a handle to the standalone lab, not another question bank |
 | Grading/progress tests | `src/test/java/com/mineledger/accounting/AccountingGraderTest.java` |
 | Account labels / translations | `src/main/resources/assets/mineledger/lang/en_us.json` |
 | Mod entry / protected blocks | `src/main/java/com/mineledger/MineLedger.java`, `block/` in the same package |
