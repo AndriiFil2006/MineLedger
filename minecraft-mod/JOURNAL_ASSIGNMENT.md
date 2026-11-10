@@ -14,8 +14,9 @@ It delegates validation to the domain layer. Invalid input can be corrected;
 valid incorrect answers display an explanation and offer Try Again or Next Question. The completion
 score counts questions answered correctly during that attempt, including retries. Reopening starts
 a new attempt. Unique correct question IDs award 10 learning XP each through `JournalSession`.
-This is separate from Minecraft experience. Session totals survive closing screens or changing
-worlds in the same client process, but reset when Minecraft exits. No progress is persisted.
+This is separate from Minecraft experience. Credited question IDs and profile XP persist across
+worlds and complete restarts through the local JSON repository described in `LOCAL_PROGRESS.md`.
+An individual exercise attempt's form and score remain transient.
 
 ## Build and tests
 
@@ -41,16 +42,17 @@ The only test dependency is JUnit 4.13.2. Reports are in `build/reports/tests/te
 
 5. Check that completion shows 3/3 and 30/30 points. Back to Assignments returns to the existing app.
    Progress should show 3/3 unique correct questions and 30/30 learning XP.
-6. Repeat the assignment. Session XP must stay at 30. In a new attempt, skip one incorrect answer
-   using Next Question; its attempt score should be 2/3 while already earned session XP remains 30.
+6. Repeat the assignment. Profile XP must stay at 30. In a new attempt, skip one incorrect answer
+   using Next Question; its attempt score should be 2/3 while already earned profile XP remains 30.
 7. Resize the window and increase GUI scale during a question, after feedback and on completion.
    Confirm the window fits without scrolling and entered values survive resizing. Expand both account
    dropdowns and select options after resizing; test scaled button hit areas, Tab/Shift+Tab navigation
    and keyboard entry. Also check desktop launch/shutdown and all three MineLedger tabs at the same sizes.
-8. Return to MineOS and reopen the app: session totals should remain. Exit Minecraft completely and
-   relaunch: Progress should show zero. Verify that the computer model and desktop look unchanged.
+8. Return to MineOS and reopen the app: profile totals should remain. Exit Minecraft completely and
+   relaunch with the same profile: Progress should retain its totals, and replaying answers must not
+   award duplicate XP. Verify that the computer model and desktop look unchanged.
 
 Runtime GUI checks require an interactive Minecraft client; automated tests cover grading and XP,
 not rendering. Courses remain a placeholder for this milestone. UI and question prose are English;
 account names use language keys. Leaving an unfinished assignment discards that attempt's form,
-but any session XP already awarded remains.
+but already awarded profile XP remains. See `LOCAL_PROGRESS.md` for file safety and recovery behavior.

@@ -50,9 +50,9 @@ public final class JournalEntryScreen extends ScaledAppScreen {
             text(form, "Assignment complete!", formWidth);
             text(form, "Score: " + correctThisAttempt.size() + " / 3 questions correct ("
                     + correctThisAttempt.size() * 10 + " / 30 points).", formWidth);
-            text(form, "Session total: " + JournalSession.PROGRESS.correctCount()
-                    + " / 3 unique questions correct; " + JournalSession.PROGRESS.xp() + " learning XP. "
-                    + "Each question awards XP only once per client session. Progress is temporary and resets when Minecraft closes.", formWidth);
+            text(form, "Profile total: " + JournalSession.progress().correctCount()
+                    + " / 3 unique questions correct; " + JournalSession.progress().xp() + " learning XP. "
+                    + "Each question awards XP only once for this profile. " + JournalSession.storageStatus(), formWidth);
         } else {
             questionForm(form, formWidth);
         }
@@ -84,7 +84,7 @@ public final class JournalEntryScreen extends ScaledAppScreen {
         amount.setEditable(!locked);
         if (!locked) {
             form.addChild(Button.builder(Component.literal("Submit Answer"), button -> {
-                result = JournalSession.PROGRESS.submit(question, new AccountingAnswer(debit, credit, amountInput));
+                result = JournalSession.progress().submit(question, new AccountingAnswer(debit, credit, amountInput));
                 expandedAccount = null;
                 if (result.correct()) correctThisAttempt.add(question.id());
                 rebuildWidgets();

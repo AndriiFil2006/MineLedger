@@ -13,10 +13,17 @@ public final class ConceptProgressionService {
     private final MultipleChoiceGrader grader = new MultipleChoiceGrader();
     private final QuestionSelector selector = new QuestionSelector();
     private AssignmentProgress progress;
+    private final Runnable onChange;
 
     public ConceptProgressionService(Assignment assignment) {
+        this(assignment, new AssignmentProgress(assignment.id(), Map.of()), () -> { });
+    }
+
+    public ConceptProgressionService(Assignment assignment, AssignmentProgress restored, Runnable onChange) {
         this.assignment = assignment;
-        progress = new AssignmentProgress(assignment.id(), Map.of());
+        validateRestored(assignment, restored);
+        progress = restored;
+        this.onChange = onChange;
     }
 
     public Assignment assignment() { return assignment; }
@@ -61,8 +68,29 @@ public final class ConceptProgressionService {
     }
 
     private void replace(String conceptId, ConceptProgress value) {
+        if (progress.concept(conceptId).equals(value)) return;
         var updated = new HashMap<>(progress.concepts());
         updated.put(conceptId, value);
         progress = new AssignmentProgress(assignment.id(), updated);
+        onChange.run();
+    }
+
+    private static void validateRestored(Assignment assignment, AssignmentProgress progress) {
+        if (!assignment.id().equals(progress.assignmentId()) || progress.concepts().keySet().stream()
+                .anyMatch(id -> assignment.concepts().stream().noneMatch(concept -> concept.id().equals(id)))) {
+            throw new IllegalArgumentException("Saved assignment or concept IDs do not match installed content");
+        }
+        boolean previousCompleted = true;
+        for (var concept : assignment.concepts()) {
+            var saved = progress.concept(concept.id());
+            var ids = concept.questions().stream().map(MultipleChoiceQuestion::id).collect(java.util.stream.Collectors.toSet());
+            if (!ids.containsAll(saved.attemptedQuestionIds()) || !saved.attemptedQuestionIds().containsAll(saved.correctQuestionIds())
+                    || saved.credits() > concept.requiredCorrectAnswers()
+                    || saved.lastAttemptedQuestionId() != null && !saved.attemptedQuestionIds().contains(saved.lastAttemptedQuestionId())
+                    || !previousCompleted && !saved.attemptedQuestionIds().isEmpty()) {
+                throw new IllegalArgumentException("Saved question credits or concept order do not match installed content");
+            }
+            previousCompleted = previousCompleted && saved.completed(concept);
+        }
     }
 }

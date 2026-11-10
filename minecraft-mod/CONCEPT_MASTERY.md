@@ -18,8 +18,9 @@ The independent `com.mineledger.accounting.mastery` package contains:
   deterministic bank order until mastery. There is no attempt limit. After feedback, Continue moves
   to the next eligible question; missed questions return later. Credits are never cleared or duplicated.
   Only a bank with no remaining distinct uncredited questions reports exhaustion.
-- `LearningSession` owns services by assignment ID. The client retains it as `JournalSession.MASTERY`;
-  creating new MineLedger screens from MineOS reuses the same progress. All state is process memory.
+- `LearningSession` owns services by assignment ID. `JournalSession.mastery()` returns the current
+  local profile's restored services; new MineLedger screens reuse them. `ProfileLearningProgress`
+  saves changes through `ProgressRepository` to local versioned JSON. See `LOCAL_PROGRESS.md`.
 
 `InventoryCreditAssignment` defines Shop Accounting Foundations with two playable concepts and
 three fixed questions each: Recording Inventory Purchases on Credit and Paying Suppliers. The latter
@@ -61,12 +62,12 @@ original XP rules and tests. Progress displays the two activities separately.
    Back to Assignments -> Progress should show 2/2 concepts, each at 2/2 questions, and 40 mastery XP.
    Return to MineOS and reopen: completion and XP must remain without awarding more XP.
    Original Open Journal Entries must still work.
-6. Restart the Minecraft client for a fresh progress session. Answer the shovel question correctly,
+6. Use a separate test profile for a fresh progress state. Answer the shovel question correctly,
    then answer books incorrectly. Confirm Incorrect and an explanation; mastery remains 1/2.
    Continue must show the lantern question, rather than repeating books immediately.
    Answer **Debit Inventory 86; Credit Accounts Payable 86** (5 x 16 + 6 delivery = 86).
    Confirm completion and 20 XP.
-7. Restart for another fresh session and answer all three incorrectly, advancing after each.
+7. Use another fresh test profile and answer all three incorrectly, advancing after each.
    Continue should automatically rotate missed questions again, with 0/2 progress and no
    end-of-bank interruption. There should be no Try Again button.
    Earn one credit and keep missing the others: the credited question must be excluded and the
@@ -83,6 +84,27 @@ original XP rules and tests. Progress displays the two activities separately.
 
 ## Tests and limitations
 
+### Recharge Practice
+
+Completing all concepts unlocks Recharge Practice from the Assignments menu and the assignment
+completion screen. This reuses the compact question UI with a Practice label and a +0 XP footer.
+`RechargePractice` owns a disposable queue of all questions, including questions not needed for
+mastery. It calls the existing grader, then Continue removes correctly reviewed questions or moves
+missed ones to the back. There is no attempt limit. Finishing the queue shows Practice Complete;
+Practice Again starts another round. Exit Assignment always returns to the app.
+
+The queue holds no progress service, reward state or save callback. Permanent concept bars remain
+fully mastered; practice feedback shows reviewed questions instead of awarding new mastery. Leaving
+practice discards only the practice round, with no effect on persistent credits, XP or completion.
+
+Manual check: finish both concepts, choose Recharge Practice, deliberately miss one question and
+continue through the others. The missed question must return later. Correct all six to finish, then
+use Practice Again. Progress must still show 40 mastery XP, and the saved JSON must remain unchanged.
+Restart Minecraft: the completed assignment and Recharge option must still be available, while a new
+practice round starts fresh. In-game visual verification remains a manual check.
+
+### Automated checks
+
 Run `./gradlew.bat build --console=plain` with Java 25. JUnit reports are in
 `build/reports/tests/test/index.html`. Tests cover grading, invalid IDs, option reordering,
 unique credits, monotonic completion, one-time XP, ordered unlocking, unlimited retries, fair rotation,
@@ -91,8 +113,8 @@ immutable snapshots, and reopening the same session service. Extra concepts used
 are synthetic fixtures, not playable content.
 
 Two concepts and six authored questions ship. Progress, attempted-question history and XP
-reset when the Minecraft process closes. Closing an exercise discards its unsubmitted selection
+persist locally per profile across client restarts. Closing an exercise discards its unsubmitted selection
 and onscreen feedback, but retains all submitted progress. Incorrect questions remain retryable
-until correct. No persistence, remote generation, FastAPI, database or networking
-is implemented. UI prose is English. Automated tests do not replace interactive rendering and
+until correct. Local JSON persistence is implemented; remote generation, FastAPI, databases and
+networking are not. UI prose is English. Automated tests do not replace interactive rendering and
 navigation checks; no interactive Minecraft GUI verification was run for this change.

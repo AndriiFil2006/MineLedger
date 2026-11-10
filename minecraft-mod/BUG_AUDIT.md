@@ -59,6 +59,6 @@ No interactive Minecraft client or dedicated-server smoke test was run for this 
 - **Future content updates:** `LearningSession` intentionally rejects different definitions with
   the same assignment ID during a client session. A future dynamic-content backend needs an explicit
   content revision/migration policy. No backend integration was added.
-- **Session-only learning:** all progress resets on client exit and is shared across worlds within
-  that running client. Client-side answer keys and XP are appropriate for local practice, not trusted
-  assessment records. Server-backed assessment is outside the current milestone.
+- **Local-only learning:** the later persistence milestone now saves per-profile progress across restarts
+  (see `LOCAL_PROGRESS.md`). It remains shared across worlds for that profile. Client-side answer keys
+  and editable local XP are appropriate for practice, not trusted assessment records.

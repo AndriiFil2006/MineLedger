@@ -14,6 +14,13 @@ repositories {
 loom {
 	splitEnvironmentSourceSets()
 
+	runs {
+		client {
+			// Keep offline development progress attached to the same local profile on every launch.
+			programArgs '--username', project.mineledger_dev_username, '--uuid', project.mineledger_dev_uuid
+		}
+	}
+
 	mods {
 		"mineledger" {
 			sourceSet sourceSets.main
