@@ -1,7 +1,9 @@
 package com.mineledger.client.screen;
 
 import java.util.EnumMap;
+import java.util.stream.Collectors;
 import com.mineledger.client.JournalSession;
+import com.mineledger.accounting.mastery.InventoryCreditAssignment;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.MultiLineTextWidget;
@@ -52,13 +54,23 @@ public final class MineLedgerScreen extends Screen {
             navigation.put(section, tab);
         }
         navigation.forEach((key, button) -> button.active = key != selected);
+        var mastery = JournalSession.MASTERY.open(InventoryCreditAssignment.ASSIGNMENT);
         LinearLayout body = LinearLayout.vertical().spacing(10);
         Component message = switch (selected) {
             case COURSES -> Component.translatable(selected.key + ".placeholder");
-            case ASSIGNMENTS -> Component.literal("Introductory Journal Entries\n"
+            case ASSIGNMENTS -> Component.literal(mastery.assignment().title() + "\n"
+                    + "Master credit purchases and paying suppliers. Each concept needs two distinct correct answers. "
+                    + "Retry as often as needed. Earn up to " + mastery.assignment().concepts().size() * 20
+                    + " learning XP.\n\nIntroductory Journal Entries\n"
                     + "Practice three Minecraft shop transactions. Choose a debit, a credit, and an emerald amount. "
                     + "Earn up to 30 learning XP per client session.");
             case PROGRESS -> Component.literal("Temporary client session progress\n"
+                    + "Concept mastery: " + mastery.completedConcepts()
+                    + " / " + mastery.assignment().concepts().size() + " concepts completed; " + mastery.xp()
+                    + " / " + mastery.assignment().concepts().size() * 20 + " mastery XP\n"
+                    + mastery.assignment().concepts().stream().map(concept -> concept.title() + ": "
+                            + mastery.progress().concept(concept.id()).credits() + "/" + concept.requiredCorrectAnswers())
+                            .collect(Collectors.joining("\n")) + "\n\nJournal practice:\n"
                     + JournalSession.PROGRESS.correctCount() + " / 3 questions correctly answered\n"
                     + JournalSession.PROGRESS.xp() + " / 30 learning XP\n"
                     + "Each question awards 10 XP only once. These are learning points, not Minecraft experience. "
@@ -67,6 +79,10 @@ public final class MineLedgerScreen extends Screen {
         body.addChild(new MultiLineTextWidget(message.copy().withStyle(style -> style.withColor(0x35383D).withoutShadow()),
                 font).setMaxWidth(panelWidth - 76));
         if (selected == Section.ASSIGNMENTS) {
+            body.addChild(Button.builder(Component.literal("Open Concept Mastery"),
+                    button -> minecraft.gui.setScreen(new ConceptAssignmentScreen(this,
+                            mastery)))
+                    .size(Math.min(220, panelWidth - 76), 20).build());
             body.addChild(Button.builder(Component.literal("Open Journal Entries"),
                     button -> minecraft.gui.setScreen(new JournalEntryScreen(this)))
                     .size(Math.min(220, panelWidth - 76), 20).build());
