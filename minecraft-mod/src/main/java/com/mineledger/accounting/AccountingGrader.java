@@ -17,7 +17,7 @@ public final class AccountingGrader {
         }
         String input = answer.amountInput().strip();
         // Plain decimal currency only: reject exponents, separators, NaN and excessive precision.
-        if (input.length() > 32 || !input.matches("-?[0-9]+(?:\\.[0-9]{1,2})?")) {
+        if (input.length() > AccountingAnswer.MAX_AMOUNT_INPUT_LENGTH || !input.matches("-?[0-9]+(?:\\.[0-9]{1,2})?")) {
             return invalid(Issue.INVALID_INPUT,
                     "Enter a number with at most two decimal places, such as 60 or 60.00.");
         }

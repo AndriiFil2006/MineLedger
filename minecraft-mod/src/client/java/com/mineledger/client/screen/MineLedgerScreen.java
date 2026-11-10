@@ -7,12 +7,10 @@ import com.mineledger.accounting.mastery.InventoryCreditAssignment;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.MultiLineTextWidget;
-import net.minecraft.client.gui.components.ScrollableLayout;
 import net.minecraft.client.gui.layouts.LinearLayout;
-import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 
-public final class MineLedgerScreen extends Screen {
+public final class MineLedgerScreen extends ScaledAppScreen {
     private enum Section {
         COURSES("courses"), ASSIGNMENTS("assignments"), PROGRESS("progress");
 
@@ -42,10 +40,9 @@ public final class MineLedgerScreen extends Screen {
 
     @Override
     protected void init() {
-        panelWidth = Math.min(720, width - 24);
-        panelHeight = Math.min(400, height - 24);
-        left = (width - panelWidth) / 2;
-        top = (height - panelHeight) / 2;
+        panelWidth = 600;
+        left = 0;
+        top = 0;
         navigation.clear();
         int tabWidth = (panelWidth - 32 - 12) / 3;
         for (Section section : Section.values()) {
@@ -87,11 +84,12 @@ public final class MineLedgerScreen extends Screen {
                     button -> minecraft.gui.setScreen(new JournalEntryScreen(this)))
                     .size(Math.min(220, panelWidth - 76), 20).build());
         }
-        ScrollableLayout scroll = new ScrollableLayout(minecraft, body, Math.max(1, panelHeight - 153));
-        scroll.arrangeElements();
-        scroll.setX(left + 28);
-        scroll.setY(top + 103);
-        scroll.visitWidgets(this::addRenderableWidget);
+        body.arrangeElements();
+        panelHeight = Math.max(220, body.getHeight() + 153);
+        fitWindow(panelWidth, panelHeight);
+        body.setX(left + 28);
+        body.setY(top + 103);
+        body.visitWidgets(this::addRenderableWidget);
         addRenderableWidget(Button.builder(Component.translatable("screen.mineledger.desktop"),
                 button -> minecraft.gui.setScreen(desktop))
                 .bounds(left + 16, top + panelHeight - 32, Math.min(160, panelWidth - 32), 20).build());
@@ -103,8 +101,7 @@ public final class MineLedgerScreen extends Screen {
     }
 
     @Override
-    public void extractBackground(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float delta) {
-        graphics.fill(0, 0, width, height, 0xFFEDEEF0);
+    protected void extractWindowBackground(GuiGraphicsExtractor graphics) {
         graphics.fill(left + 3, top + 3, left + panelWidth + 3, top + panelHeight + 3, 0xFFD5D6DA);
         graphics.fill(left, top, left + panelWidth, top + panelHeight, 0xFFFFFFFF);
         graphics.outline(left, top, panelWidth, panelHeight, 0xFFCFD1D5);
@@ -113,6 +110,11 @@ public final class MineLedgerScreen extends Screen {
         graphics.text(font, title, left + 28, top + 11, 0xFFFFFFFF, false);
         graphics.fill(left + 16, top + 72, left + panelWidth - 16, top + panelHeight - 44, 0xFFF7F7F8);
         graphics.text(font, selected.label(), left + 28, top + 84, 0xFFB6202D, false);
+    }
+
+    @Override
+    public void onClose() {
+        minecraft.gui.setScreen(desktop);
     }
 
     @Override

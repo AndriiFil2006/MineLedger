@@ -22,11 +22,12 @@ A native computer opens MineOS, whose MineLedger app has Courses, Assignments, a
 Courses is a placeholder. Journal Entries is functional: exactly three fixed Minecraft scenarios,
 one debit and one credit sharing an amount, deterministic feedback, retries, completion score,
 and at most 30 learning XP per client process. Account selectors are expandable dropdown lists
-built from native buttons, not cycle buttons. The form scrolls at smaller GUI sizes.
+built from native buttons, not cycle buttons. Every MineOS/app window uses local 85% zoom and
+shrinks further to fit. Measured content replaces scrolling, including expanded journal dropdowns.
 Shop Accounting Foundations adds multiple-choice mastery: credit purchases and paying suppliers,
 three questions each, two distinct correct questions per concept, 20 XP once per concept (40 total).
-Missed questions can be retried immediately or automatically rotate until mastered; earned credits
-never repeat. Original journal practice remains available.
+Missed mastery questions automatically rotate until mastered; feedback offers only Continue, with
+no immediate Try Again button. Earned credits never repeat. Original journal practice remains available.
 
 - Preserve MineOS's existing appearance and navigation unless the user requests a change.
 - Do not alter computer geometry, textures, blockstates, or registration unless specifically requested.
@@ -44,9 +45,12 @@ never repeat. Original journal practice remains available.
 | Task | Read first |
 | --- | --- |
 | Assignment UI, dropdowns, sizing | `src/client/java/com/mineledger/client/screen/JournalEntryScreen.java` |
-| Multiple-choice UI / wrapped answer buttons | `src/client/java/com/mineledger/client/screen/ConceptAssignmentScreen.java`, `AnswerOptionButton.java` in the same directory |
+| Multiple-choice UI | `src/client/java/com/mineledger/client/screen/ConceptAssignmentScreen.java`; 600-unit logical canvas scaled to 85% or smaller to fit, no scrollbar; transforms rendering and mouse input together, without changing global GUI scale |
+| Assignment presentation widgets | Same screen package: `ConceptProgressStripWidget` (empty/half/full mastery bars), `AssignmentTextPanel` (measured cards), `AnswerOptionButton` (wrapped radio choices), `AssignmentStyle` (white/red palette) |
+| Shared zoom / GUI lifecycle | `ScaledAppScreen` owns viewport fitting, both render hooks, and mouse transforms for all windows; subclasses implement `extractWindowBackground` and call `fitWindow` after layout. `AppScreen` clears orphaned focus; `src/main/java/com/mineledger/presentation/WindowViewport.java` supplies tested coordinate math. |
 | Mastery models, selection, progression, session store | `src/main/java/com/mineledger/accounting/mastery/` (`ConceptProgressionService`, `QuestionSelector`, `LearningSession`); content in `InventoryCreditAssignment.java` and `SupplierPaymentConcept.java` |
 | Mastery tests / manual checks | `src/test/java/com/mineledger/accounting/mastery/ConceptMasteryTest.java`, `CONCEPT_MASTERY.md` |
+| Bug audit / outstanding risks | `BUG_AUDIT.md`; coordinate tests in `src/test/java/com/mineledger/presentation/WindowViewportTest.java` |
 | Courses/Assignments/Progress tabs | `src/client/java/com/mineledger/client/screen/MineLedgerScreen.java` |
 | Desktop/app icon | `src/client/java/com/mineledger/client/screen/MineOsDesktopScreen.java`, `MineLedgerAppIcon.java` in the same directory |
 | Right-click client entry | `src/client/java/com/mineledger/client/MineLedgerClient.java` |

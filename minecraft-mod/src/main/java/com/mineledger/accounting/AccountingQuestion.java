@@ -14,9 +14,13 @@ public record AccountingQuestion(String id, String prompt, List<Account> debitAc
         Objects.requireNonNull(correctAmount);
         debitAccounts = List.copyOf(debitAccounts);
         creditAccounts = List.copyOf(creditAccounts);
+        BigDecimal normalizedAmount = correctAmount.stripTrailingZeros();
+        long integerDigits = Math.max(1L, (long) normalizedAmount.precision() - normalizedAmount.scale());
+        long inputLength = integerDigits + (normalizedAmount.scale() > 0 ? 1L + normalizedAmount.scale() : 0);
         if (id.isBlank() || prompt.isBlank() || explanation.isBlank()
                 || !debitAccounts.contains(correctDebit) || !creditAccounts.contains(correctCredit)
-                || correctDebit == correctCredit || correctAmount.signum() <= 0) {
+                || correctDebit == correctCredit || correctAmount.signum() <= 0
+                || normalizedAmount.scale() > 2 || inputLength > AccountingAnswer.MAX_AMOUNT_INPUT_LENGTH) {
             throw new IllegalArgumentException("Invalid single-debit, single-credit question");
         }
     }

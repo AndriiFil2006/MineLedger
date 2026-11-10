@@ -95,6 +95,18 @@ public class AccountingGraderTest {
     }
 
     @Test
+    public void questionAmountsMustBeRepresentableInTheAnswerWidget() {
+        for (String amount : List.of("0.001", "1E+32", "1E+2147483647")) {
+            assertThrows(IllegalArgumentException.class, () -> new AccountingQuestion("bad", "Prompt",
+                    question.debitAccounts(), question.creditAccounts(), question.correctDebit(), question.correctCredit(),
+                    new BigDecimal(amount), "Explanation"));
+        }
+        AccountingQuestion equivalent = new AccountingQuestion("decimal", "Prompt", question.debitAccounts(),
+                question.creditAccounts(), question.correctDebit(), question.correctCredit(), new BigDecimal("60.000"), "Explanation");
+        assertTrue(grader.grade(equivalent, new AccountingAnswer(Account.INVENTORY, Account.ACCOUNTS_PAYABLE, "60")).correct());
+    }
+
+    @Test
     public void repeatedSubmissionsNeverDuplicateXp() {
         JournalProgress progress = new JournalProgress();
         AccountingAnswer correct = new AccountingAnswer(Account.INVENTORY, Account.ACCOUNTS_PAYABLE, "60");

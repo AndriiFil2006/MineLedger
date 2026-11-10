@@ -6,9 +6,11 @@ progress. It has no Minecraft imports. Each answer has one debit account, one cr
 one amount that applies to both lines. Decimal currency input accepts up to two decimal places.
 
 `JournalEntryScreen` presents one question at a time using account dropdown lists built from native
-buttons, an edit box and a scrolling layout. Opening a dropdown reveals every available account
+buttons, an edit box and a measured auto-fitting layout. Opening a dropdown reveals every available account
 below its header and moves subsequent controls down; choosing an account collapses the list.
-Only one list is open at a time. It delegates validation to the domain layer. Invalid input can be corrected;
+Only one list is open at a time. Like MineOS, the MineLedger tabs and concept mastery, this window
+uses `ScaledAppScreen` for 85% zoom, shrinking further when needed to fit without a scrollbar.
+It delegates validation to the domain layer. Invalid input can be corrected;
 valid incorrect answers display an explanation and offer Try Again or Next Question. The completion
 score counts questions answered correctly during that attempt, including retries. Reopening starts
 a new attempt. Unique correct question IDs award 10 learning XP each through `JournalSession`.
@@ -42,8 +44,9 @@ The only test dependency is JUnit 4.13.2. Reports are in `build/reports/tests/te
 6. Repeat the assignment. Session XP must stay at 30. In a new attempt, skip one incorrect answer
    using Next Question; its attempt score should be 2/3 while already earned session XP remains 30.
 7. Resize the window and increase GUI scale during a question, after feedback and on completion.
-   Scroll the body to reach all controls; confirm the footer remains separate and entered values survive
-   resizing. Check Tab/Shift+Tab navigation and keyboard entry as well as mouse interactions.
+   Confirm the window fits without scrolling and entered values survive resizing. Expand both account
+   dropdowns and select options after resizing; test scaled button hit areas, Tab/Shift+Tab navigation
+   and keyboard entry. Also check desktop launch/shutdown and all three MineLedger tabs at the same sizes.
 8. Return to MineOS and reopen the app: session totals should remain. Exit Minecraft completely and
    relaunch: Progress should show zero. Verify that the computer model and desktop look unchanged.
 

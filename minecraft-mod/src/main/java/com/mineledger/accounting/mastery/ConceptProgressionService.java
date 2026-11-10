@@ -48,7 +48,9 @@ public final class ConceptProgressionService {
         }
         MultipleChoiceQuestion question = concept.questions().stream().filter(item -> item.id().equals(questionId)).findFirst().orElseThrow();
         GradingResult grading = grader.grade(question, selectedOptionId);
-        if (!grading.valid() || before.completed(concept)) return new Submission(grading, false, 0);
+        if (!grading.valid() || before.completed(concept) || before.correctQuestionIds().contains(question.id())) {
+            return new Submission(grading, false, 0);
+        }
         var attempted = new HashSet<>(before.attemptedQuestionIds());
         attempted.add(question.id());
         var correct = new HashSet<>(before.correctQuestionIds());

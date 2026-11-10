@@ -240,6 +240,28 @@ public class ConceptMasteryTest {
     }
 
     @Test
+    public void visuallyIdenticalOptionsAreRejectedEvenWithDifferentIds() {
+        var question = concept.questions().getFirst();
+        var options = new ArrayList<>(question.options());
+        options.set(0, new AnswerOption("duplicate-label", "  " + options.get(1).text().toUpperCase(java.util.Locale.ROOT) + "  "));
+        assertThrows(IllegalArgumentException.class, () -> new MultipleChoiceQuestion("ambiguous", concept.id(),
+                question.prompt(), options, question.correctOptionId(), question.explanation()));
+    }
+
+    @Test
+    public void repeatedCreditedQuestionCannotChangeRetryOrderOrProgressSnapshot() {
+        var service = service();
+        correct(service, 0);
+        incorrect(service, 1);
+        var before = service.progress();
+        var next = service.nextQuestion();
+        assertFalse(correct(service, 0).creditEarned());
+        assertFalse(incorrect(service, 0).creditEarned());
+        assertSame(before, service.progress());
+        assertEquals(next, service.nextQuestion());
+    }
+
+    @Test
     public void immediateRetryCanEarnCreditButNeverTwiceForSameQuestion() {
         ConceptProgressionService service = service();
         for (int i = 0; i < 10; i++) incorrect(service, 0);

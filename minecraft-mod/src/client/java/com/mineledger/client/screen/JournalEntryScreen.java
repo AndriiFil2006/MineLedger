@@ -12,16 +12,13 @@ import com.mineledger.accounting.IntroJournalAssignment;
 import com.mineledger.client.JournalSession;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
-import net.minecraft.client.gui.components.AbstractScrollArea;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.components.MultiLineTextWidget;
-import net.minecraft.client.gui.components.ScrollableLayout;
 import net.minecraft.client.gui.layouts.LinearLayout;
-import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 
 /** Presentation only: all answer validation and XP awards live outside this screen. */
-public final class JournalEntryScreen extends Screen {
+public final class JournalEntryScreen extends ScaledAppScreen {
     private enum AccountField { DEBIT, CREDIT }
 
     private final MineLedgerScreen parent;
@@ -32,7 +29,6 @@ public final class JournalEntryScreen extends Screen {
     private String amountInput = "";
     private AccountingResult result;
     private AccountField expandedAccount;
-    private ScrollableLayout scroll;
     private int left;
     private int top;
     private int panelWidth;
@@ -45,10 +41,9 @@ public final class JournalEntryScreen extends Screen {
 
     @Override
     protected void init() {
-        panelWidth = Math.min(720, width - 24);
-        panelHeight = Math.min(440, height - 24);
-        left = (width - panelWidth) / 2;
-        top = (height - panelHeight) / 2;
+        panelWidth = 600;
+        left = 0;
+        top = 0;
         int formWidth = panelWidth - 64;
         LinearLayout form = LinearLayout.vertical().spacing(8);
         if (questionIndex == IntroJournalAssignment.QUESTIONS.size()) {
@@ -61,11 +56,12 @@ public final class JournalEntryScreen extends Screen {
         } else {
             questionForm(form, formWidth);
         }
-        scroll = new ScrollableLayout(minecraft, form, panelHeight - 90);
-        scroll.arrangeElements();
-        scroll.setX(left + (panelWidth - scroll.getWidth()) / 2);
-        scroll.setY(top + 42);
-        scroll.visitWidgets(this::addRenderableWidget);
+        form.arrangeElements();
+        panelHeight = Math.max(200, form.getHeight() + 90);
+        fitWindow(panelWidth, panelHeight);
+        form.setX(left + (panelWidth - form.getWidth()) / 2);
+        form.setY(top + 42);
+        form.visitWidgets(this::addRenderableWidget);
         addRenderableWidget(Button.builder(Component.literal("Back to Assignments"), button -> onClose())
                 .bounds(left + 16, top + panelHeight - 32, Math.min(180, panelWidth - 32), 20).build());
     }
@@ -82,7 +78,7 @@ public final class JournalEntryScreen extends Screen {
         accountDropdown(form, formWidth, AccountField.CREDIT, credit, question.creditAccounts(), locked, value -> credit = value);
         text(form, "Amount in emeralds (applies to both lines)", formWidth);
         EditBox amount = form.addChild(new EditBox(font, formWidth, 20, Component.literal("Emerald amount")));
-        amount.setMaxLength(32);
+        amount.setMaxLength(AccountingAnswer.MAX_AMOUNT_INPUT_LENGTH);
         amount.setValue(amountInput);
         amount.setResponder(value -> amountInput = value);
         amount.setEditable(!locked);
@@ -105,6 +101,7 @@ public final class JournalEntryScreen extends Screen {
                     }).size(formWidth, 20).build());
                 }
                 form.addChild(Button.builder(Component.literal("Next Question"), button -> {
+                    if (result == null || !result.valid()) return;
                     questionIndex++;
                     expandedAccount = null;
                     debit = Account.CASH;
@@ -139,11 +136,7 @@ public final class JournalEntryScreen extends Screen {
     }
 
     private void refreshDropdown() {
-        double scrollAmount = scroll.getScrollAmount();
         rebuildWidgets();
-        scroll.visitWidgets(widget -> {
-            if (widget instanceof AbstractScrollArea area) area.setScrollAmount(scrollAmount);
-        });
     }
 
     private void text(LinearLayout form, String value, int maxWidth) {
@@ -156,8 +149,7 @@ public final class JournalEntryScreen extends Screen {
     }
 
     @Override
-    public void extractBackground(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float delta) {
-        graphics.fill(0, 0, width, height, 0xFFEDEEF0);
+    protected void extractWindowBackground(GuiGraphicsExtractor graphics) {
         graphics.fill(left, top, left + panelWidth, top + panelHeight, 0xFFFFFFFF);
         graphics.outline(left, top, panelWidth, panelHeight, 0xFFCFD1D5);
         graphics.fill(left + 1, top + 1, left + panelWidth - 1, top + 30, 0xFFB6202D);
