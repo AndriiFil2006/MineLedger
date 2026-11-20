@@ -91,7 +91,14 @@ No saves are rewritten when loading curriculum. Existing tests load pre-hierarch
 retain partial credits, complete it without duplicate XP, and run Recharge without modifying the save.
 Unknown stored IDs retain the existing warning/read-only protection instead of silently resetting.
 
-## Future Python/PostgreSQL/API path
+## Python/PostgreSQL/API path
+
+**Status (Milestone 11A):** implemented in `../backend/` (see `backend/README.md`). The backend imports
+this file unchanged, using a Python port of this loader's validation rules, idempotently and in one
+transaction. It refuses rather than deletes when imported IDs disappear, serves read-only `/api/v1`
+endpoints without answer keys, and grades multiple choice statelessly. `../shared/fixtures/multiple_choice_grading.json`
+is executed by both `SharedGradingFixtureTest` (Java) and the backend tests (Python). The mod still has
+no networking, and the paragraphs below about client integration remain future work.
 
 Python can load this exact file with its standard UTF-8 JSON reader. Import the normalized tables
 using text IDs as keys and parent IDs as foreign keys. Reference arrays become ordered associations

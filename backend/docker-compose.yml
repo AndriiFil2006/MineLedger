@@ -1,0 +1,25 @@
+# Local development PostgreSQL only. Not a production deployment.
+services:
+  postgres:
+    image: postgres:17
+    container_name: mineledger-postgres
+    environment:
+      POSTGRES_USER: mineledger
+      POSTGRES_PASSWORD: mineledger
+      POSTGRES_DB: mineledger
+    ports:
+      # Bound to 127.0.0.1 so only this computer can connect (not other devices on the network).
+      # Host port 5433 avoids clashing with a natively installed PostgreSQL on 5432.
+      - "127.0.0.1:5433:5432"
+    volumes:
+      - mineledger-pgdata:/var/lib/postgresql/data
+      # Runs only when the data volume is first created: adds the isolated pytest database.
+      - ./docker/initdb:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mineledger -d mineledger"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+volumes:
+  mineledger-pgdata:

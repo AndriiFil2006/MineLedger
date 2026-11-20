@@ -42,6 +42,8 @@ dependencies {
 
 test {
 	useJUnit()
+	// Grading and curriculum-validation parity cases shared with backend/ (Python); rerun tests when they change.
+	inputs.dir('../shared/fixtures')
 }
 
 tasks.register('validateCurriculum', JavaExec) {

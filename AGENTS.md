@@ -2,7 +2,9 @@
 
 ## Start here; keep exploration small
 
-- This repository contains the Fabric mod in `minecraft-mod/`. Run Gradle there.
+- This repository contains the Fabric mod in `minecraft-mod/` (run Gradle there) and the standalone
+  FastAPI/PostgreSQL backend in `backend/` (see `backend/README.md`). `shared/fixtures/` holds test
+  fixtures both run. Exclude `backend/.venv/` and `.pytest-tmp/` from searches.
 - Use this map to open only files relevant to the request. Start with `git status --short`;
   preserve unrelated work. Do not dump the source tree or reread every source file for each task.
 - Search narrowly with `rg` and explicit paths. Exclude generated `build/`, `.gradle/`, and
@@ -44,8 +46,13 @@ including in Recharge. It returns to the same exercise state and never awards XP
   concept mastery awards 20 XP once per completed concept (two distinct correct questions by default).
   Both are separate from Minecraft XP and survive client restarts. Storage: runtime game directory
   `mineledger/progress/<uuid>.json`, schema 1. Preserve corrupt/unsupported files; never reset silently.
-- Do not add networking, backend/HTTP/LLM integration, a course engine, or multiline
-  journal entries without a new user request. Accounting principles remain real accounting.
+- Backend (Milestone 11A) is approved and independent: it imports curriculum JSON into PostgreSQL,
+  serves it read-only under `/api/v1`, and grades multiple choice statelessly. The JSON stays the
+  source of truth for curated content. The mod still has no networking. Do not connect Minecraft to the
+  backend, or add auth, learner progress/XP sync, or AI generation, without a new user request. Offline
+  practice will remain a separate mode that never grants server-authoritative XP.
+- Do not add LLM grading, a course engine, or multiline journal entries without a new user request.
+  Accounting principles remain real accounting.
 
 ## File map (paths below are relative to minecraft-mod/)
 
@@ -80,6 +87,9 @@ literals. Read `CURRICULUM_ARCHITECTURE.md` for schema, references, backend impo
 | Mod entry / protected blocks | `src/main/java/com/mineledger/MineLedger.java`, `block/` in the same package |
 | Versions and build | `gradle.properties`, `build.gradle`, `src/main/resources/fabric.mod.json` |
 | Manual acceptance steps and scoring details | `JOURNAL_ASSIGNMENT.md` |
+| Backend setup, API, importer rules (paths relative to repo root) | `backend/README.md`; code in `backend/src/mineledger_api/` (`models`, `curriculum` = Python port of `CurriculumLoader`, `importer`, `grading`, `schemas`, `api`, `cli`); migrations in `backend/migrations/versions/` |
+| Java/Python grading parity | `shared/fixtures/multiple_choice_grading.json`, run by `minecraft-mod/.../mastery/SharedGradingFixtureTest.java` and `backend/tests/test_grading_parity.py` |
+| Java/Python curriculum validation parity | `shared/fixtures/curriculum_validation_cases.json`, run by `minecraft-mod/.../curriculum/SharedCurriculumValidationTest.java` and `backend/tests/test_curriculum_validation.py` |
 
 ## Build and verification
 
@@ -105,3 +115,16 @@ successful checks without a reason. For version-specific UI APIs, inspect instal
 with Java 25 `javap`/`jar` before relying on examples from other Minecraft releases.
 Distinguish compilation/tests from interactive GUI verification; never claim a visual check was run
 unless it was. To test manually: computer -> MineOS -> MineLedger -> Assignments -> Open Journal Entries.
+
+Backend, PowerShell from `backend/` (Python 3.13 venv in `.venv`; Docker Desktop must be running):
+
+```powershell
+docker compose up -d --wait            # PostgreSQL 17 on localhost:5433 (+ mineledger_test DB)
+.\.venv\Scripts\alembic upgrade head
+.\.venv\Scripts\mineledger import-curriculum
+.\.venv\Scripts\python -m pytest       # needs PostgreSQL; uses mineledger_test only
+.\.venv\Scripts\uvicorn mineledger_api.main:app --reload   # Swagger: http://localhost:8000/docs
+```
+
+Editing curriculum JSON or the shared grading fixture affects both the Gradle build and the pytest suite;
+run both. Add schema changes as new Alembic revisions, never by editing `0001`.

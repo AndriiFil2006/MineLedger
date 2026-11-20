@@ -1,0 +1,48 @@
+{
+  "fixture_version": 1,
+  "description": "Multiple-choice grading parity cases executed by both the Java MultipleChoiceGrader (minecraft-mod SharedGradingFixtureTest) and the Python port (backend test_grading_parity.py). Questions come from the bundled curriculum; expected_feedback is either 'question_explanation' (the question's own explanation) or 'invalid_option' (the fixed message below).",
+  "curriculum": "minecraft-mod/src/main/resources/data/mineledger/curriculum/accounting_101.json",
+  "messages": {
+    "invalid_option": "Select one of this question's four answers before submitting."
+  },
+  "cases": [
+    {"name": "shovels: correct", "question_id": "inventory.shovels", "selected_option_id": "shovels.inventory_payable", "expected_status": "correct", "expected_feedback": "question_explanation"},
+    {"name": "shovels: credits cash", "question_id": "inventory.shovels", "selected_option_id": "shovels.cash", "expected_status": "incorrect", "expected_feedback": "question_explanation"},
+    {"name": "shovels: expense", "question_id": "inventory.shovels", "selected_option_id": "shovels.expense", "expected_status": "incorrect", "expected_feedback": "question_explanation"},
+    {"name": "shovels: reversed", "question_id": "inventory.shovels", "selected_option_id": "shovels.reversed", "expected_status": "incorrect", "expected_feedback": "question_explanation"},
+
+    {"name": "books: correct net of trade discount", "question_id": "inventory.books_discount", "selected_option_id": "books.inventory_payable", "expected_status": "correct", "expected_feedback": "question_explanation"},
+    {"name": "books: gross amount", "question_id": "inventory.books_discount", "selected_option_id": "books.gross", "expected_status": "incorrect", "expected_feedback": "question_explanation"},
+    {"name": "books: credits cash", "question_id": "inventory.books_discount", "selected_option_id": "books.cash", "expected_status": "incorrect", "expected_feedback": "question_explanation"},
+    {"name": "books: records a sale", "question_id": "inventory.books_discount", "selected_option_id": "books.revenue", "expected_status": "incorrect", "expected_feedback": "question_explanation"},
+
+    {"name": "lanterns: correct including delivery", "question_id": "inventory.lanterns_delivery", "selected_option_id": "lanterns.inventory_payable", "expected_status": "correct", "expected_feedback": "question_explanation"},
+    {"name": "lanterns: goods only", "question_id": "inventory.lanterns_delivery", "selected_option_id": "lanterns.goods_only", "expected_status": "incorrect", "expected_feedback": "question_explanation"},
+    {"name": "lanterns: credits cash", "question_id": "inventory.lanterns_delivery", "selected_option_id": "lanterns.cash", "expected_status": "incorrect", "expected_feedback": "question_explanation"},
+    {"name": "lanterns: delivery expensed", "question_id": "inventory.lanterns_delivery", "selected_option_id": "lanterns.expense", "expected_status": "incorrect", "expected_feedback": "question_explanation"},
+
+    {"name": "settlement: correct", "question_id": "payables.shovels_settlement", "selected_option_id": "settlement.payable_cash", "expected_status": "correct", "expected_feedback": "question_explanation"},
+    {"name": "settlement: records inventory again", "question_id": "payables.shovels_settlement", "selected_option_id": "settlement.inventory", "expected_status": "incorrect", "expected_feedback": "question_explanation"},
+    {"name": "settlement: reversed", "question_id": "payables.shovels_settlement", "selected_option_id": "settlement.reversed", "expected_status": "incorrect", "expected_feedback": "question_explanation"},
+    {"name": "settlement: expense", "question_id": "payables.shovels_settlement", "selected_option_id": "settlement.expense", "expected_status": "incorrect", "expected_feedback": "question_explanation"},
+
+    {"name": "partial: correct amount paid today", "question_id": "payables.books_partial", "selected_option_id": "partial.payable_cash", "expected_status": "correct", "expected_feedback": "question_explanation"},
+    {"name": "partial: full balance", "question_id": "payables.books_partial", "selected_option_id": "partial.full_balance", "expected_status": "incorrect", "expected_feedback": "question_explanation"},
+    {"name": "partial: remaining balance", "question_id": "payables.books_partial", "selected_option_id": "partial.remaining", "expected_status": "incorrect", "expected_feedback": "question_explanation"},
+    {"name": "partial: debits inventory", "question_id": "payables.books_partial", "selected_option_id": "partial.inventory", "expected_status": "incorrect", "expected_feedback": "question_explanation"},
+
+    {"name": "two invoices: correct combined payment", "question_id": "payables.two_invoices", "selected_option_id": "invoices.payable_cash", "expected_status": "correct", "expected_feedback": "question_explanation"},
+    {"name": "two invoices: revenue", "question_id": "payables.two_invoices", "selected_option_id": "invoices.revenue", "expected_status": "incorrect", "expected_feedback": "question_explanation"},
+    {"name": "two invoices: one invoice only", "question_id": "payables.two_invoices", "selected_option_id": "invoices.one_only", "expected_status": "incorrect", "expected_feedback": "question_explanation"},
+    {"name": "two invoices: expense", "question_id": "payables.two_invoices", "selected_option_id": "invoices.expense", "expected_status": "incorrect", "expected_feedback": "question_explanation"},
+
+    {"name": "invalid: no selection (null)", "question_id": "inventory.shovels", "selected_option_id": null, "expected_status": "invalid_option", "expected_feedback": "invalid_option"},
+    {"name": "invalid: empty string", "question_id": "inventory.shovels", "selected_option_id": "", "expected_status": "invalid_option", "expected_feedback": "invalid_option"},
+    {"name": "invalid: unknown option ID", "question_id": "inventory.shovels", "selected_option_id": "shovels.unknown", "expected_status": "invalid_option", "expected_feedback": "invalid_option"},
+    {"name": "invalid: another question's correct option", "question_id": "inventory.shovels", "selected_option_id": "books.inventory_payable", "expected_status": "invalid_option", "expected_feedback": "invalid_option"},
+    {"name": "invalid: option IDs are case-sensitive", "question_id": "payables.two_invoices", "selected_option_id": "INVOICES.PAYABLE_CASH", "expected_status": "invalid_option", "expected_feedback": "invalid_option"},
+    {"name": "invalid: option IDs are not trimmed", "question_id": "payables.two_invoices", "selected_option_id": " invoices.payable_cash", "expected_status": "invalid_option", "expected_feedback": "invalid_option"},
+    {"name": "invalid: answer text is not an option ID", "question_id": "payables.books_partial", "selected_option_id": "Debit Accounts Payable 30; Credit Cash 30.", "expected_status": "invalid_option", "expected_feedback": "invalid_option"},
+    {"name": "invalid: option position is not an option ID", "question_id": "payables.books_partial", "selected_option_id": "1", "expected_status": "invalid_option", "expected_feedback": "invalid_option"}
+  ]
+}
