@@ -10,8 +10,8 @@ REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
 BUNDLED_CURRICULUM = (
     REPOSITORY_ROOT / "minecraft-mod" / "src" / "main" / "resources" / "data" / "mineledger" / "curriculum" / "accounting_101.json"
 )
-DEFAULT_DATABASE_URL = "postgresql+psycopg://mineledger:mineledger@localhost:5433/mineledger"
-DEFAULT_TEST_DATABASE_URL = "postgresql+psycopg://mineledger:mineledger@localhost:5433/mineledger_test"
+DEFAULT_DATABASE_URL = "postgresql+psycopg://mineledger:mineledger@127.0.0.1:5433/mineledger"
+DEFAULT_TEST_DATABASE_URL = "postgresql+psycopg://mineledger:mineledger@127.0.0.1:5433/mineledger_test"
 
 
 @dataclass(frozen=True)

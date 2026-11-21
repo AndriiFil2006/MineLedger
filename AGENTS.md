@@ -48,9 +48,14 @@ including in Recharge. It returns to the same exercise state and never awards XP
   `mineledger/progress/<uuid>.json`, schema 1. Preserve corrupt/unsupported files; never reset silently.
 - Backend (Milestone 11A) is approved and independent: it imports curriculum JSON into PostgreSQL,
   serves it read-only under `/api/v1`, and grades multiple choice statelessly. The JSON stays the
-  source of truth for curated content. The mod still has no networking. Do not connect Minecraft to the
-  backend, or add auth, learner progress/XP sync, or AI generation, without a new user request. Offline
-  practice will remain a separate mode that never grants server-authoritative XP.
+  source of truth for curated content.
+- Backend mode (Milestone 11B) is opt-in via runtime `mineledger/config.json` (`"mode": "backend"`, read at
+  startup; default offline makes no network calls). It is a read-only curriculum browser and question
+  preview over async HTTP. It must never grade, award XP, touch mastery/progress, or fall back to bundled
+  content on failure, and backend content must not be converted into local mastery models (the API hides
+  answer keys). No HTTP on the render thread; apply results on the client thread and drop stale ones.
+  Do not add backend grading, auth, learner progress/XP sync, or AI generation without a new user request.
+  Offline practice remains a separate mode that never grants server-authoritative XP.
 - Do not add LLM grading, a course engine, or multiline journal entries without a new user request.
   Accounting principles remain real accounting.
 
@@ -88,6 +93,8 @@ literals. Read `CURRICULUM_ARCHITECTURE.md` for schema, references, backend impo
 | Versions and build | `gradle.properties`, `build.gradle`, `src/main/resources/fabric.mod.json` |
 | Manual acceptance steps and scoring details | `JOURNAL_ASSIGNMENT.md` |
 | Backend setup, API, importer rules (paths relative to repo root) | `backend/README.md`; code in `backend/src/mineledger_api/` (`models`, `curriculum` = Python port of `CurriculumLoader`, `importer`, `grading`, `schemas`, `api`, `cli`); migrations in `backend/migrations/versions/` |
+| Backend mode: config, HTTP client, remote browsing | `BACKEND_MODE.md`; `src/main/java/com/mineledger/backend/` (`BackendConfig`, `CurriculumSource`, `BackendClient`, `BackendJson`, `RemoteCurriculum` DTOs, `RemoteCurriculumBrowser`); client `BackendRuntime`, `screen/RemoteCourseBrowser`, backend branches in `MineLedgerScreen`; tests in `src/test/java/com/mineledger/backend/` (loopback test server, no running backend needed) |
+| Java client / API response contract | `shared/fixtures/api_responses/` (real GET bodies + `manifest.json`), checked by `backend/tests/test_api_contract.py` and parsed by the Java backend tests; regenerate from a running backend after intentional API or curriculum changes |
 | Java/Python grading parity | `shared/fixtures/multiple_choice_grading.json`, run by `minecraft-mod/.../mastery/SharedGradingFixtureTest.java` and `backend/tests/test_grading_parity.py` |
 | Java/Python curriculum validation parity | `shared/fixtures/curriculum_validation_cases.json`, run by `minecraft-mod/.../curriculum/SharedCurriculumValidationTest.java` and `backend/tests/test_curriculum_validation.py` |
 
@@ -119,7 +126,7 @@ unless it was. To test manually: computer -> MineOS -> MineLedger -> Assignments
 Backend, PowerShell from `backend/` (Python 3.13 venv in `.venv`; Docker Desktop must be running):
 
 ```powershell
-docker compose up -d --wait            # PostgreSQL 17 on localhost:5433 (+ mineledger_test DB)
+docker compose up -d --wait            # PostgreSQL 17 on 127.0.0.1:5433 (+ mineledger_test DB)
 .\.venv\Scripts\alembic upgrade head
 .\.venv\Scripts\mineledger import-curriculum
 .\.venv\Scripts\python -m pytest       # needs PostgreSQL; uses mineledger_test only

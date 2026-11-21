@@ -2,7 +2,11 @@ package com.mineledger.client.screen;
 
 import java.util.EnumMap;
 import java.util.stream.Collectors;
+import com.mineledger.client.BackendRuntime;
 import com.mineledger.client.JournalSession;
+import com.mineledger.backend.CurriculumSource;
+import com.mineledger.backend.RemoteCurriculumBrowser;
+import net.minecraft.client.Minecraft;
 import com.mineledger.accounting.mastery.LearningSession;
 import com.mineledger.accounting.IntroJournalAssignment;
 import com.mineledger.education.Accounting101;
@@ -38,6 +42,9 @@ public final class MineLedgerScreen extends ScaledAppScreen {
     private double assignmentScroll;
     private final EnumMap<Section, Button> navigation = new EnumMap<>(Section.class);
     private Section selected = Section.COURSES;
+    /** Backend mode only; null means the unchanged offline workflow. */
+    private final RemoteCurriculumBrowser remote;
+    private boolean building;
     private int left;
     private int top;
     private int panelWidth;
@@ -46,10 +53,33 @@ public final class MineLedgerScreen extends ScaledAppScreen {
     public MineLedgerScreen(MineOsDesktopScreen desktop) {
         super(Component.translatable("screen.mineledger.title"));
         this.desktop = desktop;
+        Minecraft client = Minecraft.getInstance();
+        remote = BackendRuntime.source() instanceof CurriculumSource.Remote source
+                ? new RemoteCurriculumBrowser(source.api(), client::execute) : null;
+        // Responses are applied on the client thread; only the screen currently shown is rebuilt.
+        if (remote != null) remote.setListener(() -> {
+            if (!building && client.gui.screen() == this) rebuildWidgets();
+        });
+    }
+
+    @Override
+    public void removed() {
+        if (remote != null) remote.close(); // Late responses must not touch a screen that is gone.
+        super.removed();
     }
 
     @Override
     protected void init() {
+        building = true;
+        try {
+            if (remote != null) remote.open();
+            build();
+        } finally {
+            building = false;
+        }
+    }
+
+    private void build() {
         if (assignmentList != null) assignmentScroll = assignmentList.getScrollAmount();
         assignmentList = null;
         panelWidth = 600;
@@ -69,7 +99,14 @@ public final class MineLedgerScreen extends ScaledAppScreen {
             case COURSES, ASSIGNMENTS -> Component.empty();
             case PROGRESS -> progressMessage(session);
         };
-        if (selected == Section.COURSES) {
+        if (remote != null && selected == Section.COURSES) {
+            RemoteCourseBrowser.populate(body, panelWidth - 76, font, remote, this::rebuildWidgets);
+        } else if (remote != null && selected == Section.ASSIGNMENTS) {
+            AssignmentRows.text(body, panelWidth - 76, font, "Backend mode is a read-only curriculum preview. Browse "
+                    + "assignments and their questions from the Courses tab.\n\nGraded assignments, Recharge Practice and the "
+                    + "Journal Entries lab use local content and are available in offline mode only "
+                    + "(set \"mode\": \"offline\" in mineledger/config.json and restart).");
+        } else if (selected == Section.COURSES) {
             courses.populate(body, panelWidth - 76, font, JournalSession.mastery(), this::rebuildWidgets,
                     (service, recharge) -> minecraft.gui.setScreen(new ConceptAssignmentScreen(this, service, recharge)));
         } else if (selected == Section.ASSIGNMENTS) {
@@ -110,7 +147,7 @@ public final class MineLedgerScreen extends ScaledAppScreen {
             body.setY(top + 103);
             body.visitWidgets(this::addRenderableWidget);
         }
-        if (selected == Section.ASSIGNMENTS) {
+        if (selected == Section.ASSIGNMENTS && remote == null) {
             addRenderableWidget(Button.builder(Component.literal("Practice / Lab: Journal Entries"),
                     button -> minecraft.gui.setScreen(new JournalEntryScreen(this)))
                     .bounds(left + panelWidth - 252, top + panelHeight - 32, 236, 20).build());
@@ -122,7 +159,8 @@ public final class MineLedgerScreen extends ScaledAppScreen {
 
     private Component progressMessage(LearningSession session) {
         CourseProgress totals = new CourseProgress(session);
-        StringBuilder text = new StringBuilder("Local profile progress\n");
+        StringBuilder text = new StringBuilder(remote == null ? "Local profile progress\n"
+                : "Local profile progress (offline mode). Backend mode never changes or uploads it.\n");
         for (var course : Accounting101.CATALOG.courses()) {
             text.append(course.title()).append('\n').append(totals.course(course).assignmentsLabel()).append("\n\n");
         }
@@ -154,13 +192,16 @@ public final class MineLedgerScreen extends ScaledAppScreen {
         graphics.fill(left + 1, top + 1, left + panelWidth - 1, top + 30, 0xFFB6202D);
         graphics.fill(left + 16, top + 11, left + 20, top + 20, 0xFFFFFFFF);
         graphics.text(font, title, left + 28, top + 11, 0xFFFFFFFF, false);
+        String status = remote != null ? RemoteCourseBrowser.status(remote)
+                : BackendRuntime.configProblem().isPresent() ? "Offline (config error, see log)" : "Offline";
+        graphics.text(font, status, left + panelWidth - 16 - font.width(status), top + 11, 0xFFFFFFFF, false);
         graphics.fill(left + 16, top + 72, left + panelWidth - 16, top + panelHeight - 44, 0xFFF7F7F8);
         graphics.text(font, selected.label(), left + 28, top + 84, 0xFFB6202D, false);
     }
 
     @Override
     public void onClose() {
-        if (selected == Section.COURSES && courses.back()) rebuildWidgets();
+        if (selected == Section.COURSES && (remote != null ? remote.back() : courses.back())) rebuildWidgets();
         else minecraft.gui.setScreen(desktop);
     }
 

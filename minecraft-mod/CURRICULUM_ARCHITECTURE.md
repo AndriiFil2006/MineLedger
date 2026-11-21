@@ -97,8 +97,12 @@ Unknown stored IDs retain the existing warning/read-only protection instead of s
 this file unchanged, using a Python port of this loader's validation rules, idempotently and in one
 transaction. It refuses rather than deletes when imported IDs disappear, serves read-only `/api/v1`
 endpoints without answer keys, and grades multiple choice statelessly. `../shared/fixtures/multiple_choice_grading.json`
-is executed by both `SharedGradingFixtureTest` (Java) and the backend tests (Python). The mod still has
-no networking, and the paragraphs below about client integration remain future work.
+is executed by both `SharedGradingFixtureTest` (Java) and the backend tests (Python).
+
+**Status (Milestone 11B):** the mod has an opt-in, read-only backend mode (see `BACKEND_MODE.md`). It does
+not implement `CurriculumRepository` over REST: the API withholds answer keys, so backend content is held in
+separate preview-only types and never reaches grading or progress. Server-side grading and progress in the
+paragraphs below remain future work.
 
 Python can load this exact file with its standard UTF-8 JSON reader. Import the normalized tables
 using text IDs as keys and parent IDs as foreign keys. Reference arrays become ordered associations

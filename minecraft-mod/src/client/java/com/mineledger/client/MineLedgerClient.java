@@ -13,7 +13,9 @@ public class MineLedgerClient implements ClientModInitializer {
 	@Override
 	public void onInitializeClient() {
 		CurriculumContent.get(); // Fail clearly before opening any exercises if required content is invalid.
+		BackendRuntime.initialize(Minecraft.getInstance().gameDirectory.toPath());
 		ClientLifecycleEvents.CLIENT_STOPPING.register(client -> JournalSession.save());
+		ClientLifecycleEvents.CLIENT_STOPPING.register(client -> BackendRuntime.shutdown());
 		UseBlockCallback.EVENT.register((player, level, hand, hit) -> {
 			if (level.isClientSide() && !player.isSpectator()
 					&& level.getBlockState(hit.getBlockPos()).is(MineLedgerBlocks.COMPUTER)) {

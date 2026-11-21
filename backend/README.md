@@ -1,14 +1,15 @@
 # MineLedger API (Milestone 11A: backend foundation)
 
 A FastAPI + PostgreSQL service that imports the curated MineLedger curriculum and serves it over REST,
-with stateless, deterministic multiple-choice grading. It runs on its own; **the Minecraft mod does not
-talk to it yet**.
+with stateless, deterministic multiple-choice grading. It runs on its own. Since Milestone 11B the Minecraft
+mod can optionally read the curriculum endpoints (read-only preview; see `../minecraft-mod/BACKEND_MODE.md`).
+It does not use the grading endpoint yet.
 
 - **Source of truth:** `../minecraft-mod/src/main/resources/data/mineledger/curriculum/accounting_101.json`.
   The database holds imported copies of it. No questions are defined in Python.
 - **In scope:** curriculum tables, an idempotent importer, read-only curriculum endpoints, and
   `POST /api/v1/questions/{id}/grade`.
-- **Not in scope yet:** authentication, learner progress, XP, sync, AI generation, Minecraft HTTP integration.
+- **Not in scope yet:** authentication, learner progress, XP, sync, AI generation, grading requests from Minecraft.
 - **Stack:** Python 3.12 or 3.13 (verified on 3.13.0), FastAPI, Pydantic v2, SQLAlchemy 2.x, Alembic,
   psycopg 3, pytest, and PostgreSQL 17 in Docker. `requirements-lock.txt` records the exact versions that were tested.
 
@@ -28,7 +29,7 @@ pip install -e ".[dev]"               # reproducible: pip install -c requirement
 Start Docker Desktop first, then:
 
 ```powershell
-docker compose up -d --wait           # postgres:17 on localhost:5433, user/password mineledger
+docker compose up -d --wait           # postgres:17 on 127.0.0.1:5433, user/password mineledger
 docker compose ps                     # STATUS should show (healthy)
 ```
 
@@ -37,6 +38,10 @@ pytest. Other useful commands:
 
 - `docker compose stop` stops the server and keeps the data.
 - `docker compose down -v` deletes the data volume, including the imported curriculum.
+
+The container publishes the port on IPv4 `127.0.0.1` only, so the default URLs use `127.0.0.1`, not
+`localhost`: where `localhost` resolves to IPv6 `::1` first, each connection can stall for a long time
+before falling back. Use `127.0.0.1` for the API URL in the Minecraft config for the same reason.
 
 Settings come from environment variables, and the defaults match `docker-compose.yml`. See `.env.example`.
 To point at a different server:
