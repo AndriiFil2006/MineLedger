@@ -9,7 +9,7 @@ import java.util.concurrent.TimeoutException;
 
 /** Every backend failure, classified so callers never inspect transport exceptions. Messages are safe to display. */
 public final class BackendException extends RuntimeException {
-    public enum Kind { UNREACHABLE, TIMEOUT, HTTP_STATUS, MALFORMED_RESPONSE }
+    public enum Kind { UNREACHABLE, TIMEOUT, HTTP_STATUS, MALFORMED_RESPONSE, INCOMPATIBLE }
 
     private final Kind kind;
     private final int status;
@@ -32,6 +32,11 @@ public final class BackendException extends RuntimeException {
 
     public static BackendException malformed(String message) {
         return new BackendException(Kind.MALFORMED_RESPONSE, "Unexpected backend response: " + message);
+    }
+
+    /** The server answered properly but cannot be used by this version of the mod. */
+    public static BackendException incompatible(String message) {
+        return new BackendException(Kind.INCOMPATIBLE, message);
     }
 
     /** Unwraps future wrappers and classifies transport failures. */

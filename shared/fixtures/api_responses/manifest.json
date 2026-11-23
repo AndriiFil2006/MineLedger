@@ -3,6 +3,7 @@
   "description": "Exact GET responses of the FastAPI backend for the bundled curriculum. backend/tests/test_api_contract.py requires the API to return these bodies; the Minecraft client's tests (minecraft-mod/src/test/.../backend/) deserialize the same files. Regenerate from a running backend after an intentional API or curriculum change.",
   "responses": [
     {"path": "/health", "file": "health.json"},
+    {"path": "/api/v1/meta", "file": "meta.json"},
     {"path": "/api/v1/courses", "file": "courses.json"},
     {"path": "/api/v1/courses/accounting101", "file": "course.accounting101.json"},
     {"path": "/api/v1/units/accounting101.recording_transactions", "file": "unit.accounting101.recording_transactions.json"},

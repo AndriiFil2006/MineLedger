@@ -102,7 +102,8 @@ public class BackendJsonTest {
     @Test
     public void everyRequiredFieldIsRequiredInEveryResponse() {
         record Case(String path, Function<String, ?> parser) { }
-        List<Case> cases = List.of(new Case(ApiFixtures.HEALTH, BackendJson::health), new Case(ApiFixtures.COURSES, BackendJson::courses),
+        List<Case> cases = List.of(new Case(ApiFixtures.HEALTH, BackendJson::health), new Case(ApiFixtures.META, BackendJson::meta),
+                new Case(ApiFixtures.COURSES, BackendJson::courses),
                 new Case(ApiFixtures.COURSE, BackendJson::course), new Case(ApiFixtures.UNIT, BackendJson::unit),
                 new Case(ApiFixtures.ASSIGNMENT, BackendJson::assignment), new Case(ApiFixtures.CONCEPT_1, BackendJson::concept),
                 new Case(ApiFixtures.CONCEPT_2, BackendJson::concept), new Case(ApiFixtures.QUESTIONS, BackendJson::questions));
@@ -209,6 +210,17 @@ public class BackendJsonTest {
 
     private static JsonObject question(JsonElement root) {
         return root.getAsJsonObject().getAsJsonArray("questions").get(0).getAsJsonObject();
+    }
+
+    @Test
+    public void serverDescriptionIsParsedStrictly() {
+        assertEquals(new Meta(1, List.of(1), 1), BackendJson.meta(ApiFixtures.body(ApiFixtures.META)));
+        assertEquals(new Meta(7, List.of(), 0), BackendJson.meta("{\"api_version\":7,\"curriculum_schema_versions\":[],\"course_count\":0}"));
+        assertMalformed(() -> BackendJson.meta("{\"api_version\":\"1\",\"curriculum_schema_versions\":[1],\"course_count\":1}"), "\"api_version\"");
+        assertMalformed(() -> BackendJson.meta("{\"api_version\":1,\"curriculum_schema_versions\":[\"1\"],\"course_count\":1}"), "\"curriculum_schema_versions\"");
+        assertMalformed(() -> BackendJson.meta("{\"api_version\":1,\"curriculum_schema_versions\":1,\"course_count\":1}"), "must be a list");
+        assertMalformed(() -> BackendJson.meta("{\"api_version\":1,\"curriculum_schema_versions\":[1],\"course_count\":-1}"), "\"course_count\"");
+        assertMalformed(() -> BackendJson.meta(ApiFixtures.body(ApiFixtures.HEALTH)), "missing field");
     }
 
     @Test

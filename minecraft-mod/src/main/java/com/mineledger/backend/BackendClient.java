@@ -50,6 +50,7 @@ public final class BackendClient implements CurriculumApi, AutoCloseable {
     }
 
     @Override public CompletableFuture<Health> health() { return get("/health", BackendJson::health); }
+    @Override public CompletableFuture<Meta> meta() { return get("/api/v1/meta", BackendJson::meta); }
     @Override public CompletableFuture<List<CourseSummary>> courses() { return get("/api/v1/courses", BackendJson::courses); }
     @Override public CompletableFuture<CourseDetail> course(String id) { return get("/api/v1/courses/" + segment(id), BackendJson::course); }
     @Override public CompletableFuture<UnitDetail> unit(String id) { return get("/api/v1/units/" + segment(id), BackendJson::unit); }

@@ -51,8 +51,8 @@ public final class JournalEntryScreen extends ScaledAppScreen {
             text(form, "Score: " + correctThisAttempt.size() + " / 3 questions correct ("
                     + correctThisAttempt.size() * 10 + " / 30 points).", formWidth);
             text(form, "Profile total: " + JournalSession.progress().correctCount()
-                    + " / 3 unique questions correct; " + JournalSession.progress().xp() + " learning XP. "
-                    + "Each question awards XP only once for this profile. " + JournalSession.storageStatus(), formWidth);
+                    + " / 3 unique questions correct; " + JournalSession.progress().xp() + " local XP. "
+                    + "Each question awards local XP only once for this profile. " + JournalSession.storageStatus(), formWidth);
         } else {
             questionForm(form, formWidth);
         }

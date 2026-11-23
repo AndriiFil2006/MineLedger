@@ -70,6 +70,7 @@ public final class RemoteCurriculumBrowser {
     private final CurriculumApi api;
     private final Executor ownerThread;
     private Runnable listener = () -> { };
+    private Consumer<BackendException> failureListener = failure -> { };
     private boolean open;
     private long ticket;
     private Connection connection = Connection.CONNECTING;
@@ -89,6 +90,11 @@ public final class RemoteCurriculumBrowser {
 
     /** Called on the owner thread after a response or failure changed what should be displayed. */
     public void setListener(Runnable listener) { this.listener = listener == null ? () -> { } : listener; }
+
+    /** Told about each failed load (on the owner thread, never for stale responses), before the listener runs. */
+    public void setFailureListener(Consumer<BackendException> listener) {
+        failureListener = listener == null ? failure -> { } : listener;
+    }
 
     public Connection connection() { return connection; }
     public boolean loading() { return loading; }
@@ -239,6 +245,7 @@ public final class RemoteCurriculumBrowser {
             } catch (BackendException exception) {
                 error = exception.getMessage();
                 connection = exception.backendReachable() ? Connection.CONNECTED : Connection.UNAVAILABLE;
+                failureListener.accept(exception);
             }
             listener.run();
         }, ownerThread);

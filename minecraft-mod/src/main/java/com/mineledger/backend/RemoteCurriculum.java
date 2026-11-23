@@ -19,6 +19,11 @@ public final class RemoteCurriculum {
         public boolean ok() { return "ok".equals(status) && "ok".equals(database); }
     }
 
+    /** The backend's compatibility statement: its API contract version and what curriculum it holds. */
+    public record Meta(int apiVersion, List<Integer> curriculumSchemaVersions, int courseCount) {
+        public Meta { curriculumSchemaVersions = List.copyOf(curriculumSchemaVersions); }
+    }
+
     public record CourseSummary(String id, String title, String description, List<String> unitIds) {
         public CourseSummary { unitIds = List.copyOf(unitIds); }
     }

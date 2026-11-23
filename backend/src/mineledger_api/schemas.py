@@ -20,6 +20,14 @@ class Health(ApiModel):
     database: Literal["ok", "unavailable"]
 
 
+class Meta(ApiModel):
+    """What a client checks before using this server: the API contract version and whether curriculum is imported."""
+
+    api_version: int
+    curriculum_schema_versions: list[int]
+    course_count: int
+
+
 class CourseSummary(ApiModel):
     id: str
     title: str

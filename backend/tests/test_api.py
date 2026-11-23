@@ -4,7 +4,7 @@ from collections.abc import Iterator
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, sessionmaker
 
 from mineledger_api.db import get_session, make_engine
 from mineledger_api.main import create_app
@@ -42,6 +42,23 @@ def test_health_reports_an_unavailable_database():
     engine.dispose()
     assert response.status_code == 503
     assert response.json() == {"status": "degraded", "database": "unavailable"}
+
+
+def test_meta_reports_api_version_and_imported_curriculum(client):
+    assert client.get("/api/v1/meta").json() == {"api_version": 1, "curriculum_schema_versions": [1], "course_count": 1}
+
+
+def test_meta_on_an_empty_database_reports_no_curriculum(session):
+    factory = sessionmaker(bind=session.get_bind())
+
+    def override() -> Iterator[Session]:
+        with factory() as request_session:
+            yield request_session
+
+    app = create_app()
+    app.dependency_overrides[get_session] = override
+    with TestClient(app) as empty:
+        assert empty.get("/api/v1/meta").json() == {"api_version": 1, "curriculum_schema_versions": [], "course_count": 0}
 
 
 def test_list_courses(client):

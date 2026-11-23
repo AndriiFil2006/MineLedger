@@ -22,6 +22,8 @@ import com.google.gson.JsonParser;
 import com.mineledger.accounting.IntroJournalAssignment;
 import com.mineledger.accounting.mastery.Assignment;
 import com.mineledger.backend.BackendException.Kind;
+import com.mineledger.backend.FakeBackend.FakeApi;
+import com.mineledger.backend.FakeBackend.OwnerThread;
 import com.mineledger.backend.RemoteCurriculum.*;
 import com.mineledger.backend.RemoteCurriculumBrowser.Connection;
 import com.mineledger.backend.RemoteCurriculumBrowser.View;
@@ -33,66 +35,6 @@ import com.mineledger.progress.ProfileLearningProgress;
 /** Navigation, failure and stale-response behavior with responses and the "client thread" under test control. */
 public class RemoteCurriculumBrowserTest {
     @Rule public TemporaryFolder temporary = new TemporaryFolder();
-
-    /** Answers from the shared real-response fixtures, but only when the test says so. */
-    private static final class FakeApi implements CurriculumApi {
-        private record Pending(String path, Runnable succeed, CompletableFuture<?> future) { }
-
-        final List<String> calls = new ArrayList<>();
-        final Map<String, String> bodies = new HashMap<>(ApiFixtures.responses());
-        final Map<String, BackendException> failures = new HashMap<>();
-        BackendException failEverything;
-        private final ArrayDeque<Pending> pending = new ArrayDeque<>();
-
-        private <T> CompletableFuture<T> call(String path, Function<String, T> parser) {
-            calls.add(path);
-            CompletableFuture<T> future = new CompletableFuture<>();
-            pending.add(new Pending(path, () -> {
-                try {
-                    String body = bodies.get(path);
-                    if (body == null) throw new BackendException(Kind.HTTP_STATUS, 404, "The backend answered HTTP 404", null);
-                    future.complete(parser.apply(body));
-                } catch (RuntimeException exception) {
-                    future.completeExceptionally(exception);
-                }
-            }, future));
-            return future;
-        }
-
-        /** Completes everything requested so far, including requests chained from those completions. */
-        boolean respond() {
-            boolean any = false;
-            while (!pending.isEmpty()) {
-                Pending next = pending.poll();
-                BackendException failure = failEverything != null ? failEverything : failures.get(next.path());
-                if (failure != null) next.future().completeExceptionally(failure);
-                else next.succeed().run();
-                any = true;
-            }
-            return any;
-        }
-
-        @Override public CompletableFuture<Health> health() { return call(ApiFixtures.HEALTH, BackendJson::health); }
-        @Override public CompletableFuture<List<CourseSummary>> courses() { return call(ApiFixtures.COURSES, BackendJson::courses); }
-        @Override public CompletableFuture<CourseDetail> course(String id) { return call("/api/v1/courses/" + id, BackendJson::course); }
-        @Override public CompletableFuture<UnitDetail> unit(String id) { return call("/api/v1/units/" + id, BackendJson::unit); }
-        @Override public CompletableFuture<AssignmentDetail> assignment(String id) { return call("/api/v1/assignments/" + id, BackendJson::assignment); }
-        @Override public CompletableFuture<ConceptDetail> concept(String id) { return call("/api/v1/concepts/" + id, BackendJson::concept); }
-        @Override public CompletableFuture<AssignmentQuestions> assignmentQuestions(String id) {
-            return call("/api/v1/assignments/" + id + "/questions", BackendJson::questions);
-        }
-    }
-
-    /** Stands in for Minecraft's client thread: nothing runs until the test drains it. */
-    private static final class OwnerThread implements Executor {
-        private final ArrayDeque<Runnable> tasks = new ArrayDeque<>();
-        @Override public void execute(Runnable task) { tasks.add(task); }
-        boolean drain() {
-            boolean any = !tasks.isEmpty();
-            while (!tasks.isEmpty()) tasks.poll().run();
-            return any;
-        }
-    }
 
     private final FakeApi api = new FakeApi();
     private final OwnerThread owner = new OwnerThread();
@@ -126,7 +68,7 @@ public class RemoteCurriculumBrowserTest {
         return root.toString();
     }
 
-    private static BackendException unreachable() { return BackendException.from(new java.net.ConnectException("refused")); }
+    private static BackendException unreachable() { return FakeBackend.unreachable(); }
 
     @Test
     public void connectsWithAHealthCheckThenListsBackendCourses() {
@@ -374,6 +316,29 @@ public class RemoteCurriculumBrowserTest {
     }
 
     @Test
+    public void failuresAreReportedOnceOnTheOwnerThreadAndNeverForStaleResponses() {
+        List<BackendException> reported = new ArrayList<>();
+        browser.setFailureListener(reported::add);
+        openTo(View.COURSES);
+        api.failEverything = unreachable();
+        browser.openCourse("accounting101");
+        api.respond();
+        assertTrue("Not reported from the background thread", reported.isEmpty());
+        owner.drain();
+        assertEquals(1, reported.size());
+        assertEquals(Kind.UNREACHABLE, reported.getFirst().kind());
+
+        browser.retry();
+        browser.back(); // abandon the retry
+        settle();
+        assertEquals("An abandoned load reports nothing", 1, reported.size());
+        browser.openCourse("accounting101");
+        browser.close();
+        settle();
+        assertEquals("A closed screen reports nothing", 1, reported.size());
+    }
+
+    @Test
     public void notFoundIsAnErrorButTheBackendIsStillConnected() {
         openTo(View.COURSES);
         api.bodies.remove(ApiFixtures.COURSE);
@@ -561,7 +526,7 @@ public class RemoteCurriculumBrowserTest {
 
         // Structural guarantee: the backend package cannot reach grading, mastery or progress storage at all.
         for (Class<?> type : List.of(RemoteCurriculumBrowser.class, RemoteCurriculumBrowser.AssignmentPreview.class, CurriculumApi.class,
-                BackendClient.class, CurriculumSource.Remote.class, Question.class, AssignmentQuestions.class)) {
+                BackendClient.class, ConnectionManager.class, Question.class, AssignmentQuestions.class)) {
             List<Class<?>> referenced = new ArrayList<>();
             for (var field : type.getDeclaredFields()) referenced.add(field.getType());
             for (var method : type.getDeclaredMethods()) {

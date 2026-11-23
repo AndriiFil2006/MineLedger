@@ -5,14 +5,14 @@ from __future__ import annotations
 from typing import Annotated, TypeVar
 
 from fastapi import APIRouter, Depends, HTTPException, Response, status
-from sqlalchemy import select, text
+from sqlalchemy import func, select, text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session, selectinload
 
 from . import schemas
 from .db import get_session
 from .grading import grade_multiple_choice
-from .models import Assignment, Base, Concept, ConceptLesson, Course, Question, Unit
+from .models import Assignment, Base, Concept, ConceptLesson, Course, CurriculumBundle, Question, Unit
 
 SessionDep = Annotated[Session, Depends(get_session)]
 M = TypeVar("M", bound=Base)
@@ -37,6 +37,21 @@ def health(session: SessionDep, response: Response) -> schemas.Health:
         response.status_code = status.HTTP_503_SERVICE_UNAVAILABLE
         return schemas.Health(status="degraded", database="unavailable")
     return schemas.Health(status="ok", database="ok")
+
+
+# Bump when a response shape changes incompatibly; clients refuse versions they do not know.
+API_VERSION = 1
+
+
+@router.get("/meta", response_model=schemas.Meta)
+def meta(session: SessionDep) -> schemas.Meta:
+    """Compatibility probe: `course_count` 0 means no curriculum has been imported yet."""
+    versions = session.scalars(select(CurriculumBundle.schema_version).distinct().order_by(CurriculumBundle.schema_version)).all()
+    return schemas.Meta(
+        api_version=API_VERSION,
+        curriculum_schema_versions=list(versions),
+        course_count=session.scalar(select(func.count()).select_from(Course)) or 0,
+    )
 
 
 @router.get("/courses", response_model=list[schemas.CourseSummary])

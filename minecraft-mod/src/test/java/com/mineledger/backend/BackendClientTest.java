@@ -94,6 +94,7 @@ public class BackendClientTest {
     @Test
     public void everyCurriculumEndpointReturnsTypedObjectsFromTheExpectedPath() throws Exception {
         assertTrue(await(client.health()).ok());
+        assertEquals(new RemoteCurriculum.Meta(1, List.of(1), 1), await(client.meta()));
         assertEquals("accounting101", await(client.courses()).getFirst().id());
         assertEquals(3, await(client.course("accounting101")).units().size());
         assertEquals(3, await(client.unit("accounting101.recording_transactions")).assignments().size());

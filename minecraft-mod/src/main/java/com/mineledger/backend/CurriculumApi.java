@@ -10,6 +10,7 @@ import com.mineledger.backend.RemoteCurriculum.*;
  */
 public interface CurriculumApi {
     CompletableFuture<Health> health();
+    CompletableFuture<Meta> meta();
     CompletableFuture<List<CourseSummary>> courses();
     CompletableFuture<CourseDetail> course(String courseId);
     CompletableFuture<UnitDetail> unit(String unitId);

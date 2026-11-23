@@ -8,40 +8,40 @@ import net.minecraft.network.chat.Component;
 
 /** Backend-mode Courses tab: presents {@link RemoteCurriculumBrowser} state. Read-only; nothing here grades. */
 final class RemoteCourseBrowser {
-    static String status(RemoteCurriculumBrowser browser) {
-        return switch (browser.connection()) {
-            case CONNECTING -> "Connecting...";
-            case CONNECTED -> "Connected to backend";
-            case UNAVAILABLE -> "Backend unavailable";
-        };
-    }
-
-    static void populate(LinearLayout body, int width, Font font, RemoteCurriculumBrowser browser, Runnable refresh) {
+    /**
+     * @param connectionLost the screen already shows the connection problem and its Retry Connection button,
+     *                       so a failed page only offers the way back to what is still loaded
+     * @param showLoading    false keeps the current page on screen while the next one is being fetched, so a
+     *                       fast response replaces it directly instead of flashing a loading page in between
+     */
+    static void populate(LinearLayout body, int width, Font font, RemoteCurriculumBrowser browser, Runnable refresh,
+            boolean connectionLost, boolean showLoading) {
         if (browser.error().isPresent()) {
-            text(body, width, font, "Could not load from the backend.\n" + browser.error().get()
-                    + "\nLocal content is not substituted in backend mode.");
+            text(body, width, font, connectionLost ? "This page could not be loaded."
+                    : "Could not load from the server.\n" + browser.error().get()
+                    + "\nOffline content is not shown in its place.");
             LinearLayout row = body.addChild(LinearLayout.horizontal().spacing(6));
-            if (browser.canRetry()) {
+            if (browser.canRetry() && !connectionLost) {
                 row.addChild(Button.builder(Component.literal("Retry"), button -> browser.retry()).size(120, 20).build());
             }
             if (browser.canGoBack()) row.addChild(back("Back", browser, refresh));
             return;
         }
-        if (browser.loading()) {
-            text(body, width, font, "Loading from the backend...");
+        if (browser.loading() && showLoading) {
+            text(body, width, font, "Loading from the server...");
             if (browser.canGoBack()) body.addChild(back("Cancel", browser, refresh));
             return;
         }
         switch (browser.view()) {
             case COURSES -> {
-                text(body, width, font, "Backend courses (read-only)");
+                text(body, width, font, "Online courses (view-only)");
                 for (var course : browser.courses()) {
                     body.addChild(Button.builder(Component.literal(course.title()), button -> browser.openCourse(course.id()))
                             .size(width, 20).build());
                     text(body, width, font, count(course.unitIds().size(), "unit"));
                 }
                 if (browser.courses().isEmpty()) {
-                    text(body, width, font, "The backend has no courses. Import the curriculum on the server, then reload.");
+                    text(body, width, font, "The server has no courses yet.");
                 }
                 body.addChild(Button.builder(Component.literal("Reload"), button -> browser.reloadCourses()).size(120, 20).build());
             }
@@ -79,7 +79,7 @@ final class RemoteCourseBrowser {
                 Button questions = body.addChild(Button.builder(Component.literal("Preview Questions ("
                         + preview.questions().size() + ")"), button -> show(browser, 0, refresh)).size(width, 20).build());
                 questions.active = !preview.questions().isEmpty();
-                text(body, width, font, "Read-only preview: backend mode does not grade answers or change mastery or XP.");
+                text(body, width, font, "View-only preview: online assignments are not graded yet and do not change mastery or XP.");
             }
             case QUESTION -> {
                 var preview = browser.assignment().orElseThrow();
@@ -97,7 +97,7 @@ final class RemoteCourseBrowser {
                 Button next = row.addChild(Button.builder(Component.literal("Next"),
                         button -> show(browser, index + 1, refresh)).size(120, 20).build());
                 next.active = index + 1 < preview.questions().size();
-                text(body, width, font, "Read-only preview: answers are not graded in backend mode.");
+                text(body, width, font, "View-only preview: answers are not graded online yet.");
             }
         }
     }

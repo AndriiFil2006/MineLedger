@@ -1,8 +1,8 @@
 # MineLedger API (Milestone 11A: backend foundation)
 
 A FastAPI + PostgreSQL service that imports the curated MineLedger curriculum and serves it over REST,
-with stateless, deterministic multiple-choice grading. It runs on its own. Since Milestone 11B the Minecraft
-mod can optionally read the curriculum endpoints (read-only preview; see `../minecraft-mod/BACKEND_MODE.md`).
+with stateless, deterministic multiple-choice grading. It runs on its own. The Minecraft mod reads the curriculum endpoints when its connection
+setting allows it (view-only preview; see `../minecraft-mod/BACKEND_MODE.md`).
 It does not use the grading endpoint yet.
 
 - **Source of truth:** `../minecraft-mod/src/main/resources/data/mineledger/curriculum/accounting_101.json`.
@@ -118,6 +118,7 @@ The Java side of the grading parity check runs in the Minecraft build (`./gradle
 | Method and path | Returns |
 | --- | --- |
 | `GET /health` | `{"status":"ok","database":"ok"}`, or 503 with `degraded`/`unavailable` if the database is down |
+| `GET /api/v1/meta` | `api_version`, the imported `curriculum_schema_versions` and `course_count`. The Minecraft client checks this before going online; bump `API_VERSION` in `api.py` for incompatible response changes |
 | `GET /api/v1/courses` | Course summaries with ordered `unit_ids` |
 | `GET /api/v1/courses/{id}` | Course with its ordered units (number, title, `assignment_ids`) |
 | `GET /api/v1/units/{id}` | Unit with ordered assignments (availability, `concept_ids`) |

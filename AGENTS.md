@@ -49,13 +49,18 @@ including in Recharge. It returns to the same exercise state and never awards XP
 - Backend (Milestone 11A) is approved and independent: it imports curriculum JSON into PostgreSQL,
   serves it read-only under `/api/v1`, and grades multiple choice statelessly. The JSON stays the
   source of truth for curated content.
-- Backend mode (Milestone 11B) is opt-in via runtime `mineledger/config.json` (`"mode": "backend"`, read at
-  startup; default offline makes no network calls). It is a read-only curriculum browser and question
-  preview over async HTTP. It must never grade, award XP, touch mastery/progress, or fall back to bundled
-  content on failure, and backend content must not be converted into local mastery models (the API hides
-  answer keys). No HTTP on the render thread; apply results on the client thread and drop stale ones.
-  Do not add backend grading, auth, learner progress/XP sync, or AI generation without a new user request.
-  Offline practice remains a separate mode that never grants server-authoritative XP.
+- Connection modes (Milestones 11B/12): MineLedger Settings chooses Automatic (`auto`, default), Online
+  Required (`backend`) or Offline Practice (`offline`), saved in runtime `mineledger/config.json` and applied
+  without a restart. `ConnectionManager` owns the live state. Online is a view-only curriculum browser and
+  question preview over async HTTP (GET only). It must never grade, award XP or touch mastery/progress, and
+  backend content must not be converted into local mastery models (the API hides answer keys).
+  Automatic falls back to offline practice only when deciding fresh (app opened, retry from offline); a
+  failure while backend content is on screen becomes Connection lost and waits for the student. Online
+  Required never shows local content without the explicit Switch to Offline Practice. Offline preference
+  makes no network calls. Assignment/journal screens must stay independent of connection state.
+  No HTTP on the render thread; apply results on the client thread and drop stale ones; no polling.
+  Local XP is labeled local/practice XP and is never uploaded. Do not add backend grading, auth, learner
+  progress/XP sync, or AI generation without a new user request.
 - Do not add LLM grading, a course engine, or multiline journal entries without a new user request.
   Accounting principles remain real accounting.
 
@@ -93,7 +98,7 @@ literals. Read `CURRICULUM_ARCHITECTURE.md` for schema, references, backend impo
 | Versions and build | `gradle.properties`, `build.gradle`, `src/main/resources/fabric.mod.json` |
 | Manual acceptance steps and scoring details | `JOURNAL_ASSIGNMENT.md` |
 | Backend setup, API, importer rules (paths relative to repo root) | `backend/README.md`; code in `backend/src/mineledger_api/` (`models`, `curriculum` = Python port of `CurriculumLoader`, `importer`, `grading`, `schemas`, `api`, `cli`); migrations in `backend/migrations/versions/` |
-| Backend mode: config, HTTP client, remote browsing | `BACKEND_MODE.md`; `src/main/java/com/mineledger/backend/` (`BackendConfig`, `CurriculumSource`, `BackendClient`, `BackendJson`, `RemoteCurriculum` DTOs, `RemoteCurriculumBrowser`); client `BackendRuntime`, `screen/RemoteCourseBrowser`, backend branches in `MineLedgerScreen`; tests in `src/test/java/com/mineledger/backend/` (loopback test server, no running backend needed) |
+| Connection modes, Settings tab, HTTP client, remote browsing | `BACKEND_MODE.md`; `src/main/java/com/mineledger/backend/` (`BackendConfig` parse/migrate/save, `ConnectionManager` state machine and compatibility check, `BackendClient`, `BackendJson`, `RemoteCurriculum` DTOs, `RemoteCurriculumBrowser`); client `BackendRuntime`, `screen/RemoteCourseBrowser`, connection/Settings code in `MineLedgerScreen`; tests in `src/test/java/com/mineledger/backend/` (`FakeBackend` doubles and a loopback test server, no running backend needed) |
 | Java client / API response contract | `shared/fixtures/api_responses/` (real GET bodies + `manifest.json`), checked by `backend/tests/test_api_contract.py` and parsed by the Java backend tests; regenerate from a running backend after intentional API or curriculum changes |
 | Java/Python grading parity | `shared/fixtures/multiple_choice_grading.json`, run by `minecraft-mod/.../mastery/SharedGradingFixtureTest.java` and `backend/tests/test_grading_parity.py` |
 | Java/Python curriculum validation parity | `shared/fixtures/curriculum_validation_cases.json`, run by `minecraft-mod/.../curriculum/SharedCurriculumValidationTest.java` and `backend/tests/test_curriculum_validation.py` |

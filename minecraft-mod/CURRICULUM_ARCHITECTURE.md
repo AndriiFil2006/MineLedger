@@ -99,7 +99,7 @@ transaction. It refuses rather than deletes when imported IDs disappear, serves 
 endpoints without answer keys, and grades multiple choice statelessly. `../shared/fixtures/multiple_choice_grading.json`
 is executed by both `SharedGradingFixtureTest` (Java) and the backend tests (Python).
 
-**Status (Milestone 11B):** the mod has an opt-in, read-only backend mode (see `BACKEND_MODE.md`). It does
+**Status (Milestones 11B/12):** the mod browses backend curriculum view-only when online (see `BACKEND_MODE.md`). It does
 not implement `CurriculumRepository` over REST: the API withholds answer keys, so backend content is held in
 separate preview-only types and never reaches grading or progress. Server-side grading and progress in the
 paragraphs below remain future work.

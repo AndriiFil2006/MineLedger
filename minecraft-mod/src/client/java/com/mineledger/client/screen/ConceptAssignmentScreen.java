@@ -90,7 +90,7 @@ public final class ConceptAssignmentScreen extends ScaledAppScreen {
             body.addChild(new AssignmentTextPanel(font, contentWidth, "PROFILE SUMMARY",
                     service.completed() ? "Assignment Completed" : "Question bank unavailable",
                     service.completed() ? "All " + service.completedConcepts() + " concepts mastered. You earned " + service.xp()
-                            + " learning XP. " + JournalSession.storageStatus()
+                            + " local XP. " + JournalSession.storageStatus()
                             : "There are not enough distinct questions to finish this concept. Your earned credits are retained.",
                     service.completed() ? AssignmentStyle.SUCCESS : AssignmentStyle.WARNING));
             return body;
@@ -184,7 +184,7 @@ public final class ConceptAssignmentScreen extends ScaledAppScreen {
         String fitted = font.plainSubstrByWidth(subtitle, panelWidth - 28);
         graphics.text(font, fitted, left + 14, top + 29, AssignmentStyle.INK, false);
         graphics.fill(left + 14, top + panelHeight - 34, left + panelWidth - 14, top + panelHeight - 33, AssignmentStyle.BORDER);
-        graphics.text(font, practice == null ? service.xp() + " XP" : "Practice · +0 XP",
+        graphics.text(font, practice == null ? service.xp() + " local XP" : "Practice · +0 XP",
                 left + 14, top + panelHeight - 20, AssignmentStyle.MUTED, false);
     }
 

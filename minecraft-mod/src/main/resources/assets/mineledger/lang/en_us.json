@@ -13,6 +13,7 @@
   "screen.mineledger.courses": "Courses",
   "screen.mineledger.assignments": "Assignments",
   "screen.mineledger.progress": "Progress",
+  "screen.mineledger.settings": "Settings",
   "screen.mineledger.courses.placeholder": "Course library placeholder. Future courses will introduce accounting through life in Minecraft. No courses are available yet.",
   "screen.mineledger.assignments.placeholder": "Assignment board placeholder. Future assignments will appear here. There are no assignments to complete yet.",
   "screen.mineledger.progress.placeholder": "Progress overview placeholder. Learning milestones will appear here in a future update. No progress is tracked or saved yet."

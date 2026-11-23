@@ -13,6 +13,7 @@ import com.google.gson.JsonParser;
 final class ApiFixtures {
     static final Path DIRECTORY = Path.of("..", "shared", "fixtures", "api_responses");
     static final String HEALTH = "/health";
+    static final String META = "/api/v1/meta";
     static final String COURSES = "/api/v1/courses";
     static final String COURSE = "/api/v1/courses/accounting101";
     static final String UNIT = "/api/v1/units/accounting101.recording_transactions";

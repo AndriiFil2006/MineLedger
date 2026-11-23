@@ -33,6 +33,19 @@ public final class BackendJson {
         return new Health(text(o, "status"), text(o, "database"));
     }); }
 
+    public static Meta meta(String body) { return parse(body, "server description", root -> {
+        JsonObject o = object(root, "server description");
+        JsonElement versions = field(o, "curriculum_schema_versions");
+        if (!versions.isJsonArray()) throw bad("\"curriculum_schema_versions\" must be a list");
+        List<Integer> schemas = new ArrayList<>();
+        for (int i = 0; i < versions.getAsJsonArray().size(); i++) {
+            JsonObject holder = new JsonObject();
+            holder.add("curriculum_schema_versions", versions.getAsJsonArray().get(i));
+            schemas.add(integer(holder, "curriculum_schema_versions"));
+        }
+        return new Meta(integer(o, "api_version"), schemas, integer(o, "course_count"));
+    }); }
+
     public static List<CourseSummary> courses(String body) { return parse(body, "course list", root -> {
         List<CourseSummary> courses = new ArrayList<>();
         for (JsonObject o : objects(root, "course list")) {
