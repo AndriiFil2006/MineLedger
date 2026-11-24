@@ -1,4 +1,4 @@
-"""Relational curriculum tables (no learner progress or authentication in Milestone 11A).
+"""Relational curriculum tables, plus the `users` identity table (Milestone 13A). No learner progress.
 
 Text IDs from the curriculum JSON are primary keys. Reference arrays become `sort_order` positions.
 Every curated row records the `bundle_id` that imported it, so an import can only change its own rows.
@@ -6,10 +6,12 @@ Every curated row records the `bundle_id` that imported it, so an import can onl
 
 from __future__ import annotations
 
+import uuid
 from datetime import datetime
 from decimal import Decimal
 
 from sqlalchemy import (
+    Boolean,
     CheckConstraint,
     DateTime,
     ForeignKey,
@@ -20,7 +22,9 @@ from sqlalchemy import (
     String,
     Text,
     UniqueConstraint,
+    Uuid,
     func,
+    true,
 )
 from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
@@ -249,3 +253,29 @@ class LessonWorkedExample(Base):
     credit_entry: Mapped[str] = mapped_column(Text, nullable=False)
     explanation: Mapped[str] = mapped_column(Text, nullable=False)
     lesson: Mapped[ConceptLesson] = relationship(back_populates="worked_examples")
+
+
+ROLE_STUDENT = "student"
+ROLE_TEACHER = "teacher"
+ROLES = (ROLE_STUDENT, ROLE_TEACHER)
+
+
+class User(Base):
+    """A person known to the backend: one row per identity-provider account (`issuer` + `subject`).
+
+    `id` is the opaque internal identifier other tables should reference. The role lives here, never in
+    a token, and only the operator CLI changes it. No credentials are stored.
+    """
+
+    __tablename__ = "users"
+    __table_args__ = (
+        UniqueConstraint("issuer", "subject", name="uq_users_issuer_subject"),
+        CheckConstraint("role IN ('student', 'teacher')", name="role"),
+    )
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    issuer: Mapped[str] = mapped_column(Text, nullable=False)
+    subject: Mapped[str] = mapped_column(Text, nullable=False)
+    role: Mapped[str] = mapped_column(String(20), nullable=False, default=ROLE_STUDENT, server_default=ROLE_STUDENT)
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default=true())
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    role_changed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

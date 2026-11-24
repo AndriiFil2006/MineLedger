@@ -6,6 +6,8 @@ absent from every question retrieval schema. Explanations are returned only as g
 
 from __future__ import annotations
 
+import uuid
+from datetime import datetime
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -150,3 +152,11 @@ class GradeResponse(ApiModel):
     correct: bool
     valid: bool
     feedback: str
+
+
+class UserProfile(ApiModel):
+    """The caller's own account. `id` is the opaque internal user ID; the provider's subject is not exposed."""
+
+    id: uuid.UUID
+    role: Literal["student", "teacher"]
+    created_at: datetime

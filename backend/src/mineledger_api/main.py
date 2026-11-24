@@ -5,6 +5,7 @@ from __future__ import annotations
 from fastapi import FastAPI
 
 from .api import health_router, router
+from .auth import router as auth_router
 
 
 def create_app() -> FastAPI:
@@ -13,11 +14,13 @@ def create_app() -> FastAPI:
         version="0.1.0",
         description=(
             "Curated MineLedger curriculum imported from the versioned JSON bundle, plus stateless "
-            "multiple-choice grading. No authentication, learner progress or XP in this milestone."
+            "multiple-choice grading. Curriculum and grading are public. `/users/me` and the role checks need "
+            "a bearer access token from the configured OpenID Connect provider. No learner progress or XP yet."
         ),
     )
     app.include_router(health_router)
     app.include_router(router)
+    app.include_router(auth_router)
     return app
 
 

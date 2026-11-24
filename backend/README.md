@@ -1,4 +1,4 @@
-# MineLedger API (Milestone 11A: backend foundation)
+# MineLedger API
 
 A FastAPI + PostgreSQL service that imports the curated MineLedger curriculum and serves it over REST,
 with stateless, deterministic multiple-choice grading. It runs on its own. The Minecraft mod reads the curriculum endpoints when its connection
@@ -7,11 +7,12 @@ It does not use the grading endpoint yet.
 
 - **Source of truth:** `../minecraft-mod/src/main/resources/data/mineledger/curriculum/accounting_101.json`.
   The database holds imported copies of it. No questions are defined in Python.
-- **In scope:** curriculum tables, an idempotent importer, read-only curriculum endpoints, and
-  `POST /api/v1/questions/{id}/grade`.
-- **Not in scope yet:** authentication, learner progress, XP, sync, AI generation, grading requests from Minecraft.
+- **In scope:** curriculum tables, an idempotent importer, read-only curriculum endpoints,
+  `POST /api/v1/questions/{id}/grade`, and (Milestone 13A) authentication with student/teacher roles:
+  see [`AUTHENTICATION.md`](AUTHENTICATION.md).
+- **Not in scope yet:** learner progress, XP, sync, AI generation, grading requests or sign-in from Minecraft.
 - **Stack:** Python 3.12 or 3.13 (verified on 3.13.0), FastAPI, Pydantic v2, SQLAlchemy 2.x, Alembic,
-  psycopg 3, pytest, and PostgreSQL 17 in Docker. `requirements-lock.txt` records the exact versions that were tested.
+  psycopg 3, PyJWT, pytest, and PostgreSQL 17 in Docker. `requirements-lock.txt` records the exact versions that were tested.
 
 ## Setup (Windows PowerShell, from `backend/`)
 
@@ -53,8 +54,8 @@ $env:MINELEDGER_DATABASE_URL = 'postgresql+psycopg://user:pass@host:5432/mineled
 ### 3. Apply migrations
 
 ```powershell
-alembic upgrade head                  # creates the curriculum tables
-alembic current                       # shows 0001 (head)
+alembic upgrade head                  # creates the curriculum tables and the users table
+alembic current                       # shows 0002 (head)
 alembic check                         # "No new upgrade operations detected." = models match migrations
 ```
 
@@ -125,6 +126,8 @@ The Java side of the grading parity check runs in the Minecraft build (`./gradle
 | `GET /api/v1/assignments/{id}` | Assignment with concepts (required correct answers, question count, `lesson_id`) |
 | `GET /api/v1/concepts/{id}` | Concept with ordered `question_ids` and its full lesson, or `null` |
 | `GET /api/v1/assignments/{id}/questions` | Multiple-choice questions in concept order, with options as `{id, text}`; `[]` for Coming Soon |
+| `GET /api/v1/users/me` | The signed-in caller's `{id, role, created_at}`. Needs a bearer access token |
+| `GET /api/v1/auth/student-check`, `GET /api/v1/auth/teacher-check` | The same body, for that role only (403 otherwise) |
 | `POST /api/v1/questions/{id}/grade` | Body `{"selected_option_id": "..."}`. Returns `status` (`correct`, `incorrect` or `invalid_option`), `correct`, `valid` and `feedback` |
 
 Error behavior:
@@ -132,6 +135,8 @@ Error behavior:
 - Unknown IDs return 404 with `{"detail": "<Type> not found: <id>"}`.
 - A malformed body, or grading a `journal_entry` question, returns 422.
 - A missing, null, unknown or foreign option ID returns 200 with `invalid_option`, exactly like the Java client.
+- Protected endpoints return 401 (no valid token), 403 (wrong role or disabled account) or 503
+  (authentication not configured, which is the default; see `AUTHENTICATION.md`). Everything else is public.
 
 **Hidden answer keys.** Question retrieval never includes the correct option, an `is_correct` flag,
 journal answer keys, or question explanations. The explanation is only returned as grading feedback for a
@@ -153,6 +158,7 @@ here; authoritative, rewarded grading belongs to a later milestone with learner 
 | `answer_options` | Primary key `(question_id, option_id)` |
 | `journal_labs`, `journal_account_choices` | The standalone journal lab and its account choices |
 | `concept_lessons`, `lesson_worked_examples` | One lesson per concept |
+| `users` | One row per identity-provider account: UUID `id`, `issuer` + `subject`, `role`, `is_active`. No credentials |
 
 How stable IDs and relationships are kept:
 
@@ -225,7 +231,7 @@ Control tests switch each protection off and show the failure it prevents.
 
 | Path | Contents |
 | --- | --- |
-| `src/mineledger_api/` | App code: `models`, `curriculum`, `importer`, `grading`, `schemas`, `api`, `cli` |
+| `src/mineledger_api/` | App code: `models`, `curriculum`, `importer`, `grading`, `schemas`, `api`, `auth`, `users`, `cli` |
 | `migrations/` | Alembic environment and versions |
 | `tests/` | pytest suite |
 | `docker/initdb/` | Creates the test database |
