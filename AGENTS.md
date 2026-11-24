@@ -53,8 +53,15 @@ including in Recharge. It returns to the same exercise state and never awards XP
   OIDC access tokens (PyJWT, asymmetric algorithms only) and maps them to `users` rows with a `student` or
   `teacher` role. Roles live in the database and change only through the operator CLI; never add an HTTP
   endpoint that writes a role, never trust a role claim, and never treat a Minecraft UUID/username as proof
-  of identity. Curriculum GETs and grading stay public. The mod has no sign-in yet (design in
-  `backend/AUTHENTICATION.md`); do not add one, or progress tables, without a new user request.
+  of identity. Curriculum GETs and stateless grading stay public. The mod has no sign-in yet (design in
+  `backend/AUTHENTICATION.md`); do not add one without a new user request.
+- Server-authoritative progress (Milestone 13B, backend only): authenticated students submit an option ID
+  with an `Idempotency-Key`; the server grades, records the attempt, and owns credits, concept completion
+  and XP (20 per concept, same rules as Java `ConceptProgressionService`, including concept order). Never
+  accept a user ID, verdict, XP or completion from a client. Each submission locks the student's `users`
+  row; primary keys and unique/check constraints back that up, so keep both. Assignment progress is derived,
+  not stored. Recharge submissions are recorded but must never write credits or completions. The mod does
+  not call any of this, and local progress is never migrated or uploaded.
 - Connection modes (Milestones 11B/12): MineLedger Settings chooses Automatic (`auto`, default), Online
   Required (`backend`) or Offline Practice (`offline`), saved in runtime `mineledger/config.json` and applied
   without a restart. `ConnectionManager` owns the live state. Online is a view-only curriculum browser and
@@ -105,6 +112,7 @@ literals. Read `CURRICULUM_ARCHITECTURE.md` for schema, references, backend impo
 | Manual acceptance steps and scoring details | `JOURNAL_ASSIGNMENT.md` |
 | Backend setup, API, importer rules (paths relative to repo root) | `backend/README.md`; code in `backend/src/mineledger_api/` (`models`, `curriculum` = Python port of `CurriculumLoader`, `importer`, `grading`, `schemas`, `api`, `cli`); migrations in `backend/migrations/versions/` |
 | Backend auth, roles, user CLI (paths relative to repo root) | `backend/AUTHENTICATION.md`; `backend/src/mineledger_api/auth.py` (`TokenVerifier`, `CurrentUser`/`StudentUser`/`TeacherUser` dependencies, `/users/me`), `users.py` (provisioning, role changes), `models.User`, migration `0002`; tests in `backend/tests/test_auth.py` (loopback fake identity provider, no real provider needed) |
+| Backend submissions, mastery, XP, Recharge, progress API | `backend/PROGRESS.md`; `backend/src/mineledger_api/progress.py` (rules, transaction, derived state), `progress_api.py` (routes), `models.QuestionAttempt`/`QuestionCredit`/`ConceptCompletion`, migration `0003`; tests in `backend/tests/test_progress.py`; `python -m tests.dev_idp` is a local-only identity provider for manual testing |
 | Connection modes, Settings tab, HTTP client, remote browsing | `BACKEND_MODE.md`; `src/main/java/com/mineledger/backend/` (`BackendConfig` parse/migrate/save, `ConnectionManager` state machine and compatibility check, `BackendClient`, `BackendJson`, `RemoteCurriculum` DTOs, `RemoteCurriculumBrowser`); client `BackendRuntime`, `screen/RemoteCourseBrowser`, connection/Settings code in `MineLedgerScreen`; tests in `src/test/java/com/mineledger/backend/` (`FakeBackend` doubles and a loopback test server, no running backend needed) |
 | Java client / API response contract | `shared/fixtures/api_responses/` (real GET bodies + `manifest.json`), checked by `backend/tests/test_api_contract.py` and parsed by the Java backend tests; regenerate from a running backend after intentional API or curriculum changes |
 | Java/Python grading parity | `shared/fixtures/multiple_choice_grading.json`, run by `minecraft-mod/.../mastery/SharedGradingFixtureTest.java` and `backend/tests/test_grading_parity.py` |

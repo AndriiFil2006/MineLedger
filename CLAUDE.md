@@ -20,11 +20,11 @@ two disagree, check the code and fix whichever is stale.
 | `minecraft-mod/src/client/` | Every screen, widget and render call |
 | `minecraft-mod/src/main/resources/data/mineledger/curriculum/accounting_101.json` | The single source of curriculum content |
 | `backend/` | FastAPI + SQLAlchemy 2 + Alembic + psycopg 3, Python 3.13, PostgreSQL 17 in Docker |
-| `backend/src/mineledger_api/` | `curriculum` (Python port of the Java loader), `importer`, `api`, `grading`, `auth`, `users`, `models`, `schemas`, `cli` |
+| `backend/src/mineledger_api/` | `curriculum` (Python port of the Java loader), `importer`, `api`, `grading`, `auth`, `users`, `progress`, `progress_api`, `models`, `schemas`, `cli` |
 | `shared/fixtures/` | Cases that the Java and Python suites both run, so the two sides cannot drift |
 
 Topic documents live beside the code (`minecraft-mod/*.md`, `backend/README.md`,
-`backend/AUTHENTICATION.md`); `AGENTS.md` says which one to open for which task.
+`backend/AUTHENTICATION.md`, `backend/PROGRESS.md`); `AGENTS.md` says which one to open for which task.
 
 ## How the pieces fit
 
@@ -54,6 +54,10 @@ assignment's full bank and writes nothing. Progress is JSON per profile at
 **Authentication (backend only).** The API verifies access tokens from an external OpenID Connect
 provider and maps them to rows in `users` with a `student` or `teacher` role. The mod has no sign-in
 yet. Details: `backend/AUTHENTICATION.md`.
+
+**Server progress (backend only).** Signed-in students can submit answers that the server grades,
+records and rewards, using the same mastery rules as the mod, with idempotency keys and a per-student
+lock. The mod does not call it yet and local progress is separate. Details: `backend/PROGRESS.md`.
 
 ## Conventions
 
@@ -114,6 +118,8 @@ A change to the curriculum JSON or to anything in `shared/fixtures/` affects bot
 - Tokens must be asymmetric-signed and are never logged. The backend stores no passwords.
 - Nothing shipped in the mod jar may be a secret. `config.json` holds no credentials.
 - Answer keys and explanations stay out of every question-retrieval response; tests check this.
+- The server never accepts a user ID, verdict, XP amount or completion flag from a client.
+- Duplicate credit and XP are prevented by database constraints as well as the transaction lock; keep both.
 - Secrets, including the database URL for any real deployment, come from the environment.
-- These need a new, explicit request: mod-side sign-in, backend progress or XP sync, authoritative
-  grading, LLM grading, AI question generation.
+- These need a new, explicit request: mod-side sign-in, the mod using server progress, syncing or
+  migrating local progress, LLM grading, AI question generation.

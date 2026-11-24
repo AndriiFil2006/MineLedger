@@ -244,5 +244,6 @@ Dependency added: `PyJWT[crypto]` (PyJWT with `cryptography`).
 - **No TLS or CORS handling in the app.** Deploy behind HTTPS; add CORS when the portal exists.
 - **An ID token must not be accepted as an access token.** The audience check prevents it as long as
   the API audience differs from every client ID, which is the normal setup.
-- **Grading is still public and stateless.** It records nothing, so it has nothing to protect yet.
+- **The stateless grading endpoint is still public.** Since Milestone 13B it is an answer oracle for
+  official submissions; see `PROGRESS.md`, section 7.
 - **No classes or rosters**, so "which students belong to which teacher" cannot be enforced yet.

@@ -20,13 +20,14 @@ CURRICULUM_TABLES = {
 
 
 IDENTITY_TABLES = {"users"}
-HEAD_TABLES = CURRICULUM_TABLES | IDENTITY_TABLES | {"alembic_version"}
+PROGRESS_TABLES = {"question_attempts", "question_credits", "concept_completions"}
+HEAD_TABLES = CURRICULUM_TABLES | IDENTITY_TABLES | PROGRESS_TABLES | {"alembic_version"}
 
 
 def test_head_creates_exactly_the_curriculum_and_identity_tables(engine):
     tables = set(inspect(engine).get_table_names())
     assert tables == HEAD_TABLES
-    assert not any(word in name for name in tables for word in ("learner", "progress", "attempt", "xp", "password", "token"))
+    assert not any(word in name for name in tables for word in ("password", "token", "secret", "session"))
 
 
 def test_users_table_stores_no_credentials(engine):
@@ -73,7 +74,7 @@ def test_downgrade_to_base_and_upgrade_again(engine, database_url):
         command.upgrade(config, "head")
     assert set(inspect(engine).get_table_names()) == HEAD_TABLES
     with engine.connect() as connection:
-        assert connection.execute(text("SELECT version_num FROM alembic_version")).scalar_one() == "0002"
+        assert connection.execute(text("SELECT version_num FROM alembic_version")).scalar_one() == "0003"
 
 
 def test_answer_key_must_be_one_of_the_questions_own_options(imported):
@@ -82,3 +83,55 @@ def test_answer_key_must_be_one_of_the_questions_own_options(imported):
     with pytest.raises(IntegrityError, match="fk_questions_correct_option"):
         imported.commit()
     imported.rollback()
+
+
+def test_progress_migration_keeps_users_and_curriculum(engine, clean_db, database_url, bundled_document):
+    """0002 -> 0003 -> 0002 -> 0003 with a user and curriculum present: both survive every step."""
+    config = alembic_config(database_url)
+    try:
+        command.downgrade(config, "0002")
+        assert set(inspect(engine).get_table_names()) == CURRICULUM_TABLES | IDENTITY_TABLES | {"alembic_version"}
+        with Session(engine) as session:
+            import_curriculum(session, bundled_document, "accounting_101", "test")
+            session.execute(text(
+                "INSERT INTO users (id, issuer, subject, role) "
+                "VALUES ('6f1d2c3b-4a59-4e7f-8a1b-2c3d4e5f6a7b', 'https://idp.test', 'alex', 'teacher')"
+            ))
+            session.commit()
+            before = snapshot(session)
+            users = session.execute(text("SELECT id, issuer, subject, role, is_active, created_at FROM users")).all()
+
+        for revision in ("0003", "0002", "head"):
+            if revision == "0002":
+                command.downgrade(config, revision)
+            else:
+                command.upgrade(config, revision)
+            with Session(engine) as session:
+                assert snapshot(session) == before, revision
+                assert session.execute(text("SELECT id, issuer, subject, role, is_active, created_at FROM users")).all() == users
+    finally:
+        command.upgrade(config, "head")
+    assert PROGRESS_TABLES <= set(inspect(engine).get_table_names())
+
+
+def test_progress_tables_carry_their_integrity_constraints(engine):
+    """The guarantees live in the schema, not only in application code."""
+    inspector = inspect(engine)
+    assert inspector.get_pk_constraint("question_credits")["constrained_columns"] == ["user_id", "question_id"]
+    assert inspector.get_pk_constraint("concept_completions")["constrained_columns"] == ["user_id", "concept_id"]
+    uniques = {u["name"]: u["column_names"] for t in PROGRESS_TABLES for u in inspector.get_unique_constraints(t)}
+    assert uniques == {
+        "uq_question_attempts_user_idempotency_key": ["user_id", "idempotency_key"],
+        "uq_question_credits_attempt_id": ["attempt_id"],
+        "uq_concept_completions_attempt_id": ["attempt_id"],
+    }
+    checks = {c["name"] for t in PROGRESS_TABLES for c in inspector.get_check_constraints(t)}
+    assert checks == {
+        "ck_question_attempts_mode", "ck_question_attempts_status", "ck_question_attempts_credit_needs_graded_correct",
+        "ck_question_attempts_completion_needs_credit", "ck_question_attempts_xp_needs_completion",
+        "ck_concept_completions_non_negative_xp",
+    }
+    for table in PROGRESS_TABLES:
+        foreign = {(fk["constrained_columns"][0], fk["referred_table"]) for fk in inspector.get_foreign_keys(table)}
+        assert ("user_id", "users") in foreign, table
+        assert all(not column["nullable"] or column["name"] == "selected_option_id" for column in inspector.get_columns(table)), table

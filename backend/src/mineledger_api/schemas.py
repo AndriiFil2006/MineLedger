@@ -160,3 +160,83 @@ class UserProfile(ApiModel):
     id: uuid.UUID
     role: Literal["student", "teacher"]
     created_at: datetime
+
+
+class SubmissionRequest(ApiModel):
+    """The whole of what a student may assert: which option they chose. Everything else is server-side."""
+
+    selected_option_id: str | None = Field(
+        default=None,
+        max_length=200,
+        description="The chosen option's stable ID. Missing, null or foreign IDs are recorded as invalid_option.",
+    )
+
+
+class ConceptProgress(ApiModel):
+    concept_id: str
+    correct_answers: int = Field(description="Distinct questions answered correctly, e.g. 1 of a required 2")
+    required_correct_answers: int
+    completed: bool
+    locked: bool = Field(description="True until every earlier concept in the assignment is completed")
+    xp_awarded: int
+    completed_at: datetime | None
+    credited_question_ids: list[str]
+    attempted_question_ids: list[str]
+
+
+class AssignmentProgress(ApiModel):
+    assignment_id: str
+    status: Literal["not_started", "in_progress", "completed"]
+    completed_concepts: int
+    total_concepts: int
+    xp_earned: int
+    current_concept_id: str | None
+    concepts: list[ConceptProgress]
+
+
+class ProgressSummary(ApiModel):
+    total_xp: int
+    completed_concept_ids: list[str]
+    assignments: list[AssignmentProgress]
+
+
+class SubmissionResult(ApiModel):
+    """Grading feedback plus the student's updated progress. `replayed` marks a repeated idempotency key."""
+
+    attempt_id: uuid.UUID
+    mode: Literal["graded", "recharge"]
+    question_id: str
+    concept_id: str
+    assignment_id: str
+    selected_option_id: str | None
+    status: Literal["correct", "incorrect", "invalid_option"]
+    correct: bool
+    valid: bool
+    feedback: str
+    credit_earned: bool
+    concept_completed: bool
+    xp_awarded: int
+    replayed: bool
+    submitted_at: datetime
+    total_xp: int
+    assignment: AssignmentProgress
+
+
+class AttemptRecord(ApiModel):
+    attempt_id: uuid.UUID
+    mode: Literal["graded", "recharge"]
+    question_id: str
+    concept_id: str
+    assignment_id: str
+    selected_option_id: str | None
+    status: Literal["correct", "incorrect", "invalid_option"]
+    credit_earned: bool
+    concept_completed: bool
+    xp_awarded: int
+    submitted_at: datetime
+
+
+class AttemptHistory(ApiModel):
+    attempts: list[AttemptRecord]
+    limit: int
+    offset: int

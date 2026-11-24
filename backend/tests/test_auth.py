@@ -45,7 +45,7 @@ def b64url(data: bytes) -> str:
 class FakeIdentityProvider:
     """Signs tokens and serves the public half of its key the way an OpenID Connect provider does."""
 
-    def __init__(self) -> None:
+    def __init__(self, port: int = 0) -> None:
         self.key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
         self.other_key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
         self.discovery_issuer: str | None = None
@@ -70,7 +70,7 @@ class FakeIdentityProvider:
             def log_message(self, *args) -> None:
                 pass
 
-        self.server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+        self.server = ThreadingHTTPServer(("127.0.0.1", port), Handler)
         self.issuer = f"http://127.0.0.1:{self.server.server_address[1]}"
         self.jwks_url = f"{self.issuer}/jwks.json"
         threading.Thread(target=self.server.serve_forever, daemon=True).start()

@@ -1,4 +1,4 @@
-"""Relational curriculum tables, plus the `users` identity table (Milestone 13A). No learner progress.
+"""Relational curriculum tables, the `users` identity table (13A) and student progress tables (13B).
 
 Text IDs from the curriculum JSON are primary keys. Reference arrays become `sort_order` positions.
 Every curated row records the `bundle_id` that imported it, so an import can only change its own rows.
@@ -16,6 +16,7 @@ from sqlalchemy import (
     DateTime,
     ForeignKey,
     ForeignKeyConstraint,
+    Index,
     Integer,
     MetaData,
     Numeric,
@@ -279,3 +280,67 @@ class User(Base):
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default=true())
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
     role_changed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+MODE_GRADED = "graded"
+MODE_RECHARGE = "recharge"
+
+
+def _user_fk(**kwargs) -> Mapped[uuid.UUID]:
+    return mapped_column(Uuid, ForeignKey("users.id"), nullable=False, **kwargs)
+
+
+class QuestionAttempt(Base):
+    """One processed multiple-choice submission: the append-only history, and the idempotency record.
+
+    `(user_id, idempotency_key)` is unique, so a retried request can never be recorded twice. The reward
+    columns say what this attempt earned; the check constraints make a rewarded Recharge attempt, or XP
+    without a completed concept, impossible to store.
+    """
+
+    __tablename__ = "question_attempts"
+    __table_args__ = (
+        UniqueConstraint("user_id", "idempotency_key", name="uq_question_attempts_user_idempotency_key"),
+        CheckConstraint("mode IN ('graded', 'recharge')", name="mode"),
+        CheckConstraint("status IN ('correct', 'incorrect', 'invalid_option')", name="status"),
+        CheckConstraint("NOT credit_earned OR (mode = 'graded' AND status = 'correct')", name="credit_needs_graded_correct"),
+        CheckConstraint("NOT concept_completed OR credit_earned", name="completion_needs_credit"),
+        CheckConstraint("xp_awarded >= 0 AND (xp_awarded = 0 OR concept_completed)", name="xp_needs_completion"),
+        Index("ix_question_attempts_user_created", "user_id", "created_at"),
+    )
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = _user_fk()
+    question_id: Mapped[str] = mapped_column(ID, ForeignKey("questions.id"), nullable=False, index=True)
+    idempotency_key: Mapped[str] = mapped_column(String(128), nullable=False)
+    mode: Mapped[str] = mapped_column(String(16), nullable=False)
+    selected_option_id: Mapped[str | None] = mapped_column(ID)
+    status: Mapped[str] = mapped_column(String(16), nullable=False)
+    credit_earned: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    concept_completed: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    xp_awarded: Mapped[int] = mapped_column(Integer, nullable=False)
+    # clock_timestamp(), not now(): attempts made in one transaction-second still sort in the order they happened.
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.clock_timestamp()
+    )
+
+
+class QuestionCredit(Base):
+    """A mastery credit: this student answered this question correctly. At most one per question, ever."""
+
+    __tablename__ = "question_credits"
+    user_id: Mapped[uuid.UUID] = _user_fk(primary_key=True)
+    question_id: Mapped[str] = mapped_column(ID, ForeignKey("questions.id"), primary_key=True, index=True)
+    attempt_id: Mapped[uuid.UUID] = mapped_column(Uuid, ForeignKey("question_attempts.id"), nullable=False, unique=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.clock_timestamp())
+
+
+class ConceptCompletion(Base):
+    """A completed concept and the XP it paid. The primary key is what makes that XP payable only once."""
+
+    __tablename__ = "concept_completions"
+    __table_args__ = (CheckConstraint("xp_awarded >= 0", name="non_negative_xp"),)
+    user_id: Mapped[uuid.UUID] = _user_fk(primary_key=True)
+    concept_id: Mapped[str] = mapped_column(ID, ForeignKey("concepts.id"), primary_key=True, index=True)
+    attempt_id: Mapped[uuid.UUID] = mapped_column(Uuid, ForeignKey("question_attempts.id"), nullable=False, unique=True)
+    xp_awarded: Mapped[int] = mapped_column(Integer, nullable=False)
+    completed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.clock_timestamp())

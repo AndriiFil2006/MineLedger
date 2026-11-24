@@ -1,4 +1,4 @@
-# Exact versions verified with Python 3.13.0 on 2026-11-23 (pytest: 221 passed).
+# Exact versions verified with Python 3.13.0 on 2026-11-24 (pytest: 341 passed).
 # Optional: pip install -c requirements-lock.txt -e ".[dev]"
 alembic==1.20.1
 annotated-doc==0.0.6

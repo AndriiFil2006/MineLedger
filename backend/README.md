@@ -9,8 +9,10 @@ It does not use the grading endpoint yet.
   The database holds imported copies of it. No questions are defined in Python.
 - **In scope:** curriculum tables, an idempotent importer, read-only curriculum endpoints,
   `POST /api/v1/questions/{id}/grade`, and (Milestone 13A) authentication with student/teacher roles:
-  see [`AUTHENTICATION.md`](AUTHENTICATION.md).
-- **Not in scope yet:** learner progress, XP, sync, AI generation, grading requests or sign-in from Minecraft.
+  see [`AUTHENTICATION.md`](AUTHENTICATION.md). Milestone 13B adds authenticated, server-authoritative
+  submissions, mastery, XP, Recharge and progress retrieval: see [`PROGRESS.md`](PROGRESS.md).
+- **Not in scope yet:** any use of authentication or progress by the Minecraft mod, teacher access to
+  student progress, sync of local progress, AI generation.
 - **Stack:** Python 3.12 or 3.13 (verified on 3.13.0), FastAPI, Pydantic v2, SQLAlchemy 2.x, Alembic,
   psycopg 3, PyJWT, pytest, and PostgreSQL 17 in Docker. `requirements-lock.txt` records the exact versions that were tested.
 
@@ -54,8 +56,8 @@ $env:MINELEDGER_DATABASE_URL = 'postgresql+psycopg://user:pass@host:5432/mineled
 ### 3. Apply migrations
 
 ```powershell
-alembic upgrade head                  # creates the curriculum tables and the users table
-alembic current                       # shows 0002 (head)
+alembic upgrade head                  # creates the curriculum, users and progress tables
+alembic current                       # shows 0003 (head)
 alembic check                         # "No new upgrade operations detected." = models match migrations
 ```
 
@@ -128,6 +130,8 @@ The Java side of the grading parity check runs in the Minecraft build (`./gradle
 | `GET /api/v1/assignments/{id}/questions` | Multiple-choice questions in concept order, with options as `{id, text}`; `[]` for Coming Soon |
 | `GET /api/v1/users/me` | The signed-in caller's `{id, role, created_at}`. Needs a bearer access token |
 | `GET /api/v1/auth/student-check`, `GET /api/v1/auth/teacher-check` | The same body, for that role only (403 otherwise) |
+| `POST /api/v1/questions/{id}/submissions`, `.../recharge-submissions` | Authenticated student submission (header `Idempotency-Key`): graded, recorded, and for official submissions rewarded. See `PROGRESS.md` |
+| `GET /api/v1/progress`, `/progress/assignments/{id}`, `/progress/attempts` | The signed-in student's XP, mastery and attempt history |
 | `POST /api/v1/questions/{id}/grade` | Body `{"selected_option_id": "..."}`. Returns `status` (`correct`, `incorrect` or `invalid_option`), `correct`, `valid` and `feedback` |
 
 Error behavior:
@@ -143,8 +147,9 @@ journal answer keys, or question explanations. The explanation is only returned 
 valid selection. Tests check this recursively for every retrieval endpoint and for the OpenAPI schemas.
 
 **Stateless grading.** Grading reads one question and writes nothing: no attempts, credits or XP.
-Because it's stateless and unauthenticated, a client could try all four options. That's acceptable
-here; authoritative, rewarded grading belongs to a later milestone with learner state.
+Because it's stateless and unauthenticated, a client can try all four options and read the explanation.
+Now that official submissions exist, that makes this endpoint an answer oracle: it must be removed or
+restricted before real students use the authenticated submission endpoints (`PROGRESS.md`, section 7).
 
 ## Design notes
 
@@ -159,6 +164,7 @@ here; authoritative, rewarded grading belongs to a later milestone with learner 
 | `journal_labs`, `journal_account_choices` | The standalone journal lab and its account choices |
 | `concept_lessons`, `lesson_worked_examples` | One lesson per concept |
 | `users` | One row per identity-provider account: UUID `id`, `issuer` + `subject`, `role`, `is_active`. No credentials |
+| `question_attempts`, `question_credits`, `concept_completions` | Student progress: attempt history and idempotency record, one credit per question, one completion (and XP) per concept. Assignment progress is derived |
 
 How stable IDs and relationships are kept:
 
@@ -231,7 +237,7 @@ Control tests switch each protection off and show the failure it prevents.
 
 | Path | Contents |
 | --- | --- |
-| `src/mineledger_api/` | App code: `models`, `curriculum`, `importer`, `grading`, `schemas`, `api`, `auth`, `users`, `cli` |
+| `src/mineledger_api/` | App code: `models`, `curriculum`, `importer`, `grading`, `schemas`, `api`, `auth`, `users`, `progress`, `progress_api`, `cli` |
 | `migrations/` | Alembic environment and versions |
 | `tests/` | pytest suite |
 | `docker/initdb/` | Creates the test database |
