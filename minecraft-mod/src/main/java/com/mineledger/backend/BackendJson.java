@@ -19,6 +19,9 @@ import com.google.gson.stream.JsonToken;
 import com.mineledger.accounting.mastery.AnswerOption;
 import com.mineledger.accounting.mastery.Assignment.Availability;
 import com.mineledger.backend.RemoteCurriculum.*;
+import com.mineledger.backend.auth.AccountApi.RemoteUser;
+import com.mineledger.backend.auth.AccountApi.Role;
+import com.mineledger.backend.auth.AuthSettings;
 import com.mineledger.education.lesson.ConceptLesson;
 
 /**
@@ -115,6 +118,32 @@ public final class BackendJson {
         }
         unique(questions.stream().map(Question::id).toList(), "question");
         return new AssignmentQuestions(text(o, "assignment_id"), questions);
+    }); }
+
+    /** Empty when the server reports that sign-in is not configured. */
+    public static Optional<AuthSettings> authSettings(String body) { return parse(body, "sign-in settings", root -> {
+        JsonObject o = object(root, "sign-in settings");
+        JsonElement enabled = field(o, "enabled");
+        if (!enabled.isJsonPrimitive() || !enabled.getAsJsonPrimitive().isBoolean()) throw bad("\"enabled\" must be true or false");
+        if (!enabled.getAsBoolean()) return Optional.<AuthSettings>empty();
+        return Optional.of(new AuthSettings(text(o, "issuer"), text(o, "client_id"), text(o, "audience")));
+    }); }
+
+    /** The signed-in account. An unknown role is refused rather than guessed. */
+    public static RemoteUser user(String body) { return parse(body, "account", root -> {
+        JsonObject o = object(root, "account");
+        String id = text(o, "id");
+        try {
+            if (!java.util.UUID.fromString(id).toString().equals(id)) throw new IllegalArgumentException();
+        } catch (IllegalArgumentException exception) {
+            throw bad("\"id\" must be a user ID");
+        }
+        Role role = switch (text(o, "role")) {
+            case "student" -> Role.STUDENT;
+            case "teacher" -> Role.TEACHER;
+            default -> throw bad("\"role\" must be student or teacher");
+        };
+        return new RemoteUser(id, role);
     }); }
 
     /** FastAPI's {@code {"detail": "..."}} error text, if this body has one. Never throws. */

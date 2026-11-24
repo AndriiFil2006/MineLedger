@@ -27,7 +27,7 @@ from jwt.exceptions import PyJWKClientConnectionError, PyJWKClientError
 from sqlalchemy.orm import Session
 
 from . import schemas
-from .config import get_settings
+from .config import Settings, get_settings
 from .db import get_session
 from .models import ROLE_STUDENT, ROLE_TEACHER, User
 from .users import get_or_create_user
@@ -194,6 +194,17 @@ router = APIRouter(prefix="/api/v1", tags=["users"])
 
 def _profile(user: User) -> schemas.UserProfile:
     return schemas.UserProfile(id=user.id, role=user.role, created_at=user.created_at)
+
+
+@router.get("/auth/config", response_model=schemas.AuthConfig, tags=["users"])
+def auth_config(settings: Annotated[Settings, Depends(get_settings)]) -> schemas.AuthConfig:
+    """Public: where and as which OAuth client a player signs in. `enabled` is false until all three are set."""
+    values = (settings.auth_issuer, settings.auth_audience, settings.auth_client_id)
+    if not all(values):
+        return schemas.AuthConfig(enabled=False, issuer=None, audience=None, client_id=None)
+    return schemas.AuthConfig(
+        enabled=True, issuer=settings.auth_issuer, audience=settings.auth_audience, client_id=settings.auth_client_id
+    )
 
 
 # Every handler below answers about the caller only. None takes a user ID, so there is no other

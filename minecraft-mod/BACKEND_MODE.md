@@ -141,10 +141,27 @@ In a world: right-click the computer → MineOS → MineLedger.
 8. **Persistence.** Close the game and start it again: the last chosen setting is still selected, and
    Progress shows the same local XP as before (no XP was gained by switching modes).
 
-## Not in this milestone
+## Signing in (Milestone 13C)
 
-- No grading, XP or progress on the backend; no authentication; no synchronization. Local progress is never
-  converted into official progress.
+MineLedger → Settings has an **Account** section with Sign In / Sign Out. Signing in opens the system
+browser (Authorization Code with PKCE); no password is typed in the game. It is available only while the
+connection state is Online, and it changes nothing about the modes above:
+
+- Automatic fallback, Online Required and Offline Practice behave exactly as before, signed in or not.
+- Offline Practice still makes no network calls, including for the account.
+- Local grading, local XP and Recharge never involve the account. Local XP is never sent to the server,
+  merged with server XP or converted into it.
+- Losing the connection does not sign anyone out.
+- The access token is sent to the MineLedger server on `GET /api/v1/users/me` only. Curriculum requests
+  never carry it. Online browsing is still view-only: the game does not submit answers yet.
+
+Details, Auth0 setup and the manual test: `../backend/AUTHENTICATION.md`. Code:
+`src/main/java/com/mineledger/backend/auth/`.
+
+## Not in the game yet
+
+- The game does not submit answers to the backend or read server progress, and nothing is synchronized.
+  Local progress is never converted into official progress.
 - **For future authoritative submissions:** a timeout must never be read as "not processed". Each submission
   will need a client-generated idempotency key, stored and deduplicated by the backend, so a retry after a
   lost response returns the original result instead of grading or rewarding twice. The client must keep the

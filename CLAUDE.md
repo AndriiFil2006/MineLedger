@@ -16,7 +16,7 @@ two disagree, check the code and fix whichever is stale.
 | Path | Responsibility |
 | --- | --- |
 | `minecraft-mod/` | Fabric mod (Java 25, Minecraft 26.3). Run Gradle here |
-| `minecraft-mod/src/main/java/com/mineledger/` | Domain, free of Minecraft classes: `accounting/` (grading, mastery), `education/` (courses, lessons), `curriculum/` (JSON loader), `progress/` (save files), `backend/` (HTTP client, connection state), `presentation/` |
+| `minecraft-mod/src/main/java/com/mineledger/` | Domain, free of Minecraft classes: `accounting/` (grading, mastery), `education/` (courses, lessons), `curriculum/` (JSON loader), `progress/` (save files), `backend/` (HTTP client, connection state), `backend/auth/` (sign-in), `presentation/` |
 | `minecraft-mod/src/client/` | Every screen, widget and render call |
 | `minecraft-mod/src/main/resources/data/mineledger/curriculum/accounting_101.json` | The single source of curriculum content |
 | `backend/` | FastAPI + SQLAlchemy 2 + Alembic + psycopg 3, Python 3.13, PostgreSQL 17 in Docker |
@@ -51,9 +51,11 @@ question. Missed questions rotate back automatically. Recharge Practice replays 
 assignment's full bank and writes nothing. Progress is JSON per profile at
 `<game dir>/mineledger/progress/<uuid>.json`; it is labeled local XP and never uploaded.
 
-**Authentication (backend only).** The API verifies access tokens from an external OpenID Connect
-provider and maps them to rows in `users` with a `student` or `teacher` role. The mod has no sign-in
-yet. Details: `backend/AUTHENTICATION.md`.
+**Authentication.** The API verifies access tokens from an external OpenID Connect provider (Auth0 in
+development) and maps them to rows in `users` with a `student` or `teacher` role. Players sign in from
+MineLedger Settings: the system browser opens, the mod completes Authorization Code with PKCE as a
+public client, and the sign-in counts once `GET /api/v1/users/me` accepts the token. Sign-in needs the
+server and changes nothing about offline practice. Details: `backend/AUTHENTICATION.md`.
 
 **Server progress (backend only).** Signed-in students can submit answers that the server grades,
 records and rewards, using the same mastery rules as the mod, with idempotency keys and a per-student
@@ -117,9 +119,14 @@ A change to the curriculum JSON or to anything in `shared/fixtures/` affects bot
   writes a role, and never trust a role claim from a token or request.
 - Tokens must be asymmetric-signed and are never logged. The backend stores no passwords.
 - Nothing shipped in the mod jar may be a secret. `config.json` holds no credentials.
+- No password is ever entered in the game. Access tokens stay in memory; only the refresh token is
+  stored, in `mineledger/session.json`. Tokens travel only over https or to this computer.
+- The sign-in code never reads or writes local progress, and local XP is never merged into server XP.
+- The public stateless grader reveals answers. It exists in development mode only, where the server
+  answers just its own computer. Anything students can reach runs with `MINELEDGER_ENV=production`.
 - Answer keys and explanations stay out of every question-retrieval response; tests check this.
 - The server never accepts a user ID, verdict, XP amount or completion flag from a client.
 - Duplicate credit and XP are prevented by database constraints as well as the transaction lock; keep both.
 - Secrets, including the database URL for any real deployment, come from the environment.
-- These need a new, explicit request: mod-side sign-in, the mod using server progress, syncing or
-  migrating local progress, LLM grading, AI question generation.
+- These need a new, explicit request: the mod submitting answers or using server progress, syncing
+  or migrating local progress, LLM grading, AI question generation.

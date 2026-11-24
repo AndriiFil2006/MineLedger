@@ -10,6 +10,7 @@ import com.mineledger.backend.ConnectionManager.Content;
 import com.mineledger.backend.ConnectionManager.OfflineReason;
 import com.mineledger.backend.ConnectionManager.State;
 import com.mineledger.backend.RemoteCurriculumBrowser;
+import com.mineledger.backend.auth.SignInManager;
 import net.minecraft.client.Minecraft;
 import com.mineledger.accounting.mastery.LearningSession;
 import com.mineledger.accounting.IntroJournalAssignment;
@@ -48,6 +49,7 @@ public final class MineLedgerScreen extends ScaledAppScreen {
     private Section selected = Section.COURSES;
     private final Minecraft client = Minecraft.getInstance();
     private final ConnectionManager connection = BackendRuntime.connection();
+    private final SignInManager account = BackendRuntime.account();
     /** Exists only while backend content is shown; local practice never goes through it. */
     private RemoteCurriculumBrowser remote;
     private boolean building;
@@ -64,6 +66,12 @@ public final class MineLedgerScreen extends ScaledAppScreen {
         super(Component.translatable("screen.mineledger.title"));
         this.desktop = desktop;
         connection.appOpened();
+        accountOpened();
+    }
+
+    /** Sign-in needs the server, so a remembered sign-in is renewed only once the server is known to be usable. */
+    private void accountOpened() {
+        if (connection.state() == State.ONLINE && !connection.checking()) account.appOpened();
     }
 
     /** Connection and backend results arrive on the client thread; only the screen currently shown is rebuilt. */
@@ -74,6 +82,7 @@ public final class MineLedgerScreen extends ScaledAppScreen {
     private void connectionChanged() {
         // After a successful reconnect, finish the load that failed when the connection dropped.
         if (connection.state() == State.ONLINE && !connection.checking() && remote != null && remote.canRetry()) remote.retry();
+        accountOpened();
         refresh();
     }
 
@@ -92,10 +101,12 @@ public final class MineLedgerScreen extends ScaledAppScreen {
     }
 
     private final Runnable connectionListener = this::connectionChanged;
+    private final Runnable accountListener = this::refresh;
 
     @Override
     public void removed() {
         connection.removeListener(connectionListener);
+        account.removeListener(accountListener);
         if (remote != null) remote.close(); // Late responses must not touch a screen that is gone.
         super.removed();
     }
@@ -105,6 +116,7 @@ public final class MineLedgerScreen extends ScaledAppScreen {
         building = true;
         try {
             connection.addListener(connectionListener);
+            account.addListener(accountListener);
             syncRemote();
             build();
         } finally {
@@ -290,10 +302,45 @@ public final class MineLedgerScreen extends ScaledAppScreen {
         connectionActions(body);
         AssignmentRows.text(body, width, font, "Offline practice saves progress and local XP on this computer only. "
                 + "It is practice, not official coursework, and it is never uploaded.");
+        account(body, width);
         connection.saveProblem().ifPresent(message -> AssignmentRows.text(body, width, font, message));
         BackendRuntime.configProblem().ifPresent(message -> AssignmentRows.text(body, width, font,
                 "The settings file could not be read, so default settings are in use. Choosing an option above "
                 + "replaces it (a copy of the old file is kept)."));
+    }
+
+    /** The MineLedger account: status, one action, and anything the player should know about the last attempt. */
+    private void account(LinearLayout body, int width) {
+        boolean online = connection.state() == State.ONLINE;
+        String status = switch (account.state()) {
+            case SIGNED_OUT -> "Account: Not signed in."
+                    + (online ? " Signing in opens your web browser. MineLedger never asks for your password in the game."
+                            : connection.preference() == Mode.OFFLINE ? " Signing in is not available in Offline Practice."
+                            : " Signing in needs the MineLedger server.");
+            case WAITING_FOR_BROWSER -> "Account: Signing in. Finish in your web browser, then come back here. "
+                    + "If no browser opened, copy the link and paste it into one.";
+            case FINISHING -> "Account: Signing in. Checking with the MineLedger server...";
+            case RESTORING -> "Account: Restoring your sign-in...";
+            case SIGNED_IN -> account.account().map(signedIn -> "Account: Signed in as "
+                    + signedIn.displayName().orElse("user " + signedIn.user().id().substring(0, 8))
+                    + "\nRole: " + signedIn.user().role().label() + "\nAccount ID: " + signedIn.user().id()
+                    + "\nYour account is separate from offline practice. Local XP is never added to it.").orElse("Account");
+        };
+        AssignmentRows.text(body, width, font, status);
+        account.problem().ifPresent(message -> AssignmentRows.text(body, width, font, message));
+        account.notice().ifPresent(message -> AssignmentRows.text(body, width, font, message));
+        switch (account.state()) {
+            case SIGNED_OUT -> body.addChild(Button.builder(Component.literal("Sign In"), button -> account.signIn())
+                    .size(150, 20).build()).active = online;
+            case SIGNED_IN -> body.addChild(Button.builder(Component.literal("Sign Out"), button -> account.signOut())
+                    .size(150, 20).build());
+            default -> {
+                LinearLayout row = body.addChild(LinearLayout.horizontal().spacing(6));
+                row.addChild(Button.builder(Component.literal("Cancel Sign-In"), button -> account.cancel()).size(150, 20).build());
+                account.browserUrl().ifPresent(url -> row.addChild(Button.builder(Component.literal("Copy Sign-In Link"),
+                        button -> client.keyboardHandler.setClipboard(url.toString())).size(150, 20).build()));
+            }
+        }
     }
 
     private void choice(LinearLayout row, Mode mode, String label) {

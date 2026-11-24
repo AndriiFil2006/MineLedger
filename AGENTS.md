@@ -53,8 +53,17 @@ including in Recharge. It returns to the same exercise state and never awards XP
   OIDC access tokens (PyJWT, asymmetric algorithms only) and maps them to `users` rows with a `student` or
   `teacher` role. Roles live in the database and change only through the operator CLI; never add an HTTP
   endpoint that writes a role, never trust a role claim, and never treat a Minecraft UUID/username as proof
-  of identity. Curriculum GETs and stateless grading stay public. The mod has no sign-in yet (design in
-  `backend/AUTHENTICATION.md`); do not add one without a new user request.
+  of identity. Curriculum GETs stay public. `MINELEDGER_ENV` is `development` (default: answers this
+  computer only, public stateless grader on) or `production` (start-up checks, grader off); never weaken either.
+- Sign-in from the game (Milestone 13C): Settings has Sign In / Sign Out. `SignInManager` runs Authorization
+  Code with PKCE in the system browser against the provider the backend publishes at `/api/v1/auth/config`
+  (Auth0 in development), receives the redirect on 127.0.0.1 ports 47821-47823 (registered at Auth0; do not
+  change them casually), and counts a sign-in only after `GET /api/v1/users/me` succeeds. No client secret,
+  no password in game, no token in logs, `config.json`, messages or `toString`; the access token stays in
+  memory and only the refresh token is stored (`mineledger/session.json`). Tokens go only over https or to
+  this computer. The auth package must stay free of Minecraft, progress and accounting classes, and must
+  never touch local progress or XP. Sign-in is available only while Online; offline behavior is unchanged.
+  The mod still does not submit answers or read server progress.
 - Server-authoritative progress (Milestone 13B, backend only): authenticated students submit an option ID
   with an `Idempotency-Key`; the server grades, records the attempt, and owns credits, concept completion
   and XP (20 per concept, same rules as Java `ConceptProgressionService`, including concept order). Never
@@ -112,6 +121,7 @@ literals. Read `CURRICULUM_ARCHITECTURE.md` for schema, references, backend impo
 | Manual acceptance steps and scoring details | `JOURNAL_ASSIGNMENT.md` |
 | Backend setup, API, importer rules (paths relative to repo root) | `backend/README.md`; code in `backend/src/mineledger_api/` (`models`, `curriculum` = Python port of `CurriculumLoader`, `importer`, `grading`, `schemas`, `api`, `cli`); migrations in `backend/migrations/versions/` |
 | Backend auth, roles, user CLI (paths relative to repo root) | `backend/AUTHENTICATION.md`; `backend/src/mineledger_api/auth.py` (`TokenVerifier`, `CurrentUser`/`StudentUser`/`TeacherUser` dependencies, `/users/me`), `users.py` (provisioning, role changes), `models.User`, migration `0002`; tests in `backend/tests/test_auth.py` (loopback fake identity provider, no real provider needed) |
+| Game sign-in, tokens, loopback callback | `backend/AUTHENTICATION.md` (Auth0 setup in section 4, manual test in section 8); `src/main/java/com/mineledger/backend/auth/` (`SignInManager` state machine, `OidcHttpClient`, `LoopbackCallbackServer`, `Pkce`, `IdToken`, `RefreshTokenStore`, `AccountApi`); client `BackendRuntime.account()` and the Account section of Settings in `MineLedgerScreen`; tests in `src/test/java/com/mineledger/backend/auth/` (`SignInFlowTest` runs the whole flow over real HTTP against a stand-in provider) |
 | Backend submissions, mastery, XP, Recharge, progress API | `backend/PROGRESS.md`; `backend/src/mineledger_api/progress.py` (rules, transaction, derived state), `progress_api.py` (routes), `models.QuestionAttempt`/`QuestionCredit`/`ConceptCompletion`, migration `0003`; tests in `backend/tests/test_progress.py`; `python -m tests.dev_idp` is a local-only identity provider for manual testing |
 | Connection modes, Settings tab, HTTP client, remote browsing | `BACKEND_MODE.md`; `src/main/java/com/mineledger/backend/` (`BackendConfig` parse/migrate/save, `ConnectionManager` state machine and compatibility check, `BackendClient`, `BackendJson`, `RemoteCurriculum` DTOs, `RemoteCurriculumBrowser`); client `BackendRuntime`, `screen/RemoteCourseBrowser`, connection/Settings code in `MineLedgerScreen`; tests in `src/test/java/com/mineledger/backend/` (`FakeBackend` doubles and a loopback test server, no running backend needed) |
 | Java client / API response contract | `shared/fixtures/api_responses/` (real GET bodies + `manifest.json`), checked by `backend/tests/test_api_contract.py` and parsed by the Java backend tests; regenerate from a running backend after intentional API or curriculum changes |
@@ -152,6 +162,10 @@ docker compose up -d --wait            # PostgreSQL 17 on 127.0.0.1:5433 (+ mine
 .\.venv\Scripts\python -m pytest       # needs PostgreSQL; uses mineledger_test only
 .\.venv\Scripts\uvicorn mineledger_api.main:app --reload   # Swagger: http://localhost:8000/docs
 ```
+
+Backend settings are `MINELEDGER_*` environment variables, with a git-ignored `backend/.env` filling in any
+that are unset (the developer's Auth0 values live there). pytest ignores both the file and any
+`MINELEDGER_AUTH_*` variables. Never commit `backend/.env` or put its values in tracked files.
 
 Editing curriculum JSON or the shared grading fixture affects both the Gradle build and the pytest suite;
 run both. Add schema changes as new Alembic revisions, never by editing `0001`.

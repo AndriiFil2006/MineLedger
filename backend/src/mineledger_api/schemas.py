@@ -162,6 +162,15 @@ class UserProfile(ApiModel):
     created_at: datetime
 
 
+class AuthConfig(ApiModel):
+    """What a client needs to start a sign-in. All of it is public; there is no client secret."""
+
+    enabled: bool
+    issuer: str | None
+    audience: str | None
+    client_id: str | None
+
+
 class SubmissionRequest(ApiModel):
     """The whole of what a student may assert: which option they chose. Everything else is server-side."""
 

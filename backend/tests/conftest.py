@@ -7,7 +7,13 @@ import os
 from collections.abc import Iterator
 from pathlib import Path
 
-import pytest
+# Tests must not depend on the developer's own settings: no backend/.env, and none of the variables a
+# real sign-in setup leaves in the environment. This runs before the application is imported.
+os.environ["MINELEDGER_ENV_FILE"] = ""
+for _name in [name for name in os.environ if name.startswith("MINELEDGER_AUTH_") or name == "MINELEDGER_ENV"]:
+    del os.environ[_name]
+
+import pytest  # noqa: E402
 from alembic import command
 from alembic.config import Config
 from fastapi.testclient import TestClient

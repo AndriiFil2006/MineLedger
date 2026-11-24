@@ -11,8 +11,8 @@ It does not use the grading endpoint yet.
   `POST /api/v1/questions/{id}/grade`, and (Milestone 13A) authentication with student/teacher roles:
   see [`AUTHENTICATION.md`](AUTHENTICATION.md). Milestone 13B adds authenticated, server-authoritative
   submissions, mastery, XP, Recharge and progress retrieval: see [`PROGRESS.md`](PROGRESS.md).
-- **Not in scope yet:** any use of authentication or progress by the Minecraft mod, teacher access to
-  student progress, sync of local progress, AI generation.
+- **Not in scope yet:** answer submission or server progress in the Minecraft mod (it can sign in, and
+  that is all: Milestone 13C), teacher access to student progress, sync of local progress, AI generation.
 - **Stack:** Python 3.12 or 3.13 (verified on 3.13.0), FastAPI, Pydantic v2, SQLAlchemy 2.x, Alembic,
   psycopg 3, PyJWT, pytest, and PostgreSQL 17 in Docker. `requirements-lock.txt` records the exact versions that were tested.
 
@@ -46,8 +46,10 @@ The container publishes the port on IPv4 `127.0.0.1` only, so the default URLs u
 `localhost`: where `localhost` resolves to IPv6 `::1` first, each connection can stall for a long time
 before falling back. Use `127.0.0.1` for the API URL in the Minecraft config for the same reason.
 
-Settings come from environment variables, and the defaults match `docker-compose.yml`. See `.env.example`.
-To point at a different server:
+Settings come from `MINELEDGER_*` environment variables, or from a git-ignored `backend/.env` file with
+the same names (copy `.env.example`). An environment variable overrides the file, and the defaults match
+`docker-compose.yml`. The file is read at start-up, so restart after editing it. To point at a
+different server:
 
 ```powershell
 $env:MINELEDGER_DATABASE_URL = 'postgresql+psycopg://user:pass@host:5432/mineledger'
@@ -128,6 +130,7 @@ The Java side of the grading parity check runs in the Minecraft build (`./gradle
 | `GET /api/v1/assignments/{id}` | Assignment with concepts (required correct answers, question count, `lesson_id`) |
 | `GET /api/v1/concepts/{id}` | Concept with ordered `question_ids` and its full lesson, or `null` |
 | `GET /api/v1/assignments/{id}/questions` | Multiple-choice questions in concept order, with options as `{id, text}`; `[]` for Coming Soon |
+| `GET /api/v1/auth/config` | Public: `{enabled, issuer, audience, client_id}`, what the game needs to start a sign-in |
 | `GET /api/v1/users/me` | The signed-in caller's `{id, role, created_at}`. Needs a bearer access token |
 | `GET /api/v1/auth/student-check`, `GET /api/v1/auth/teacher-check` | The same body, for that role only (403 otherwise) |
 | `POST /api/v1/questions/{id}/submissions`, `.../recharge-submissions` | Authenticated student submission (header `Idempotency-Key`): graded, recorded, and for official submissions rewarded. See `PROGRESS.md` |
@@ -146,10 +149,15 @@ Error behavior:
 journal answer keys, or question explanations. The explanation is only returned as grading feedback for a
 valid selection. Tests check this recursively for every retrieval endpoint and for the OpenAPI schemas.
 
-**Stateless grading.** Grading reads one question and writes nothing: no attempts, credits or XP.
-Because it's stateless and unauthenticated, a client can try all four options and read the explanation.
-Now that official submissions exist, that makes this endpoint an answer oracle: it must be removed or
-restricted before real students use the authenticated submission endpoints (`PROGRESS.md`, section 7).
+**Stateless grading.** `POST /questions/{id}/grade` reads one question and writes nothing: no attempts,
+credits or XP. It is unauthenticated, so a caller can try all four options and read the explanation. That
+makes it an answer oracle for official submissions, so it exists in development mode only:
+
+- `MINELEDGER_ENV=development` (the default) keeps it, and the whole server answers only the computer
+  it runs on.
+- `MINELEDGER_ENV=production` turns it off (403) and refuses to start without authentication over https.
+
+See `AUTHENTICATION.md`, "Deployment modes". Never expose a development-mode server to other computers.
 
 ## Design notes
 

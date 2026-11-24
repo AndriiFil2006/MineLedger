@@ -1,18 +1,19 @@
-# MineLedger authentication and roles (Milestone 13A)
+# MineLedger authentication and roles
 
-This milestone adds the identity foundation only: verified sign-in, a server-side user record, and
-student/teacher roles enforced by the backend. There is no student progress, no teacher analytics, no
-Minecraft login UI and no web portal yet.
+Milestone 13A added verified sign-in on the backend, a server-side user record, and student/teacher
+roles. Milestone 13C adds real development authentication with Auth0 and sign-in from Minecraft.
+There is still no teacher portal.
 
 ## 1. Architecture
 
 **The backend is an OAuth 2.0 resource server. An external OpenID Connect (OIDC) provider does the login.**
+For development that provider is Auth0. The automated tests use a local stand-in and need no account.
 
 ```
- Minecraft mod (later) ──device flow──┐
-                                      ├──>  OIDC provider  ── signs short-lived access tokens (JWT)
- React portal (later)  ──code + PKCE──┘            │
-                                                   │ public keys (JWKS)
+ Minecraft mod ── browser sign-in, code + PKCE ──┐
+                                                 ├──>  Auth0  ── signs short-lived access tokens (JWT)
+ React portal (later) ── code + PKCE ────────────┘        │
+                                                          │ public keys (JWKS)
  any client ── Authorization: Bearer <token> ──> MineLedger API ── users table (id, issuer, subject, role)
 ```
 
@@ -21,40 +22,38 @@ Minecraft login UI and no web portal yet.
 - The backend never sees a password and issues no tokens. It holds no client secret and no signing key,
   only the provider's public keys, which it fetches from the JWKS endpoint.
 - Each request's bearer token is verified with PyJWT (`src/mineledger_api/auth.py`): signature,
-  issuer, audience, expiry, and a required `sub`. Only asymmetric algorithms are accepted; `none` and
-  `HS*` are rejected even if someone configures them.
+  issuer and audience (both exact matches), expiry, and a required `sub`. Only asymmetric algorithms
+  are accepted; `none` and `HS*` are rejected even if someone configures them.
 - A verified token maps to one row in `users`. The **role comes from that row, never from the token**.
+- The mod is a public client: it has a client ID and no secret. It learns the issuer, client ID and
+  audience from the backend (`GET /api/v1/auth/config`), so nothing provider-specific is in the jar.
 
 ### Why a provider rather than passwords in this backend
 
 | | External OIDC provider (chosen) | Passwords stored by this backend |
 | --- | --- | --- |
 | Security-sensitive code we own | Token verification through one library call | Hashing, login throttling, lockout, reset emails, session/refresh-token storage and rotation, revocation |
-| Minecraft sign-in without typing a password in game | Device authorization flow is built in | We would have to build and secure a pairing flow |
+| Minecraft sign-in without typing a password in game | Browser sign-in is built in | We would have to build and secure a pairing flow |
 | School accounts (Google Workspace, Microsoft) | Federation is a provider setting | Not available |
 | Student data we hold | An opaque subject ID | Password hashes and email addresses, mostly of minors |
 | Cost | A provider to configure and depend on | More code to write, test and keep patched |
 
-The users are mostly students, a second client (the web portal) is coming, and both clients need
-flows that providers already implement. Writing that ourselves would add risk and no value.
+The backend speaks standard OIDC and has no Auth0-specific code, so another provider (Okta, Microsoft
+Entra ID, self-hosted Keycloak) can replace it by changing three environment variables. The mod sends
+one Auth0-specific parameter, `audience`, which other providers ignore or replace with `resource`.
 
-"Managed or self-hosted" stays open, because the backend only speaks standard OIDC:
+### Why Authorization Code with PKCE, not the device flow
 
-- **Managed** (for example Auth0, Okta, Microsoft Entra ID): the least to operate. Recommended unless
-  a school requires that login data stays on its own infrastructure.
-- **Self-hosted** (for example Keycloak): the same protocols on your own server, and you carry the
-  patching and uptime.
-
-Whichever is chosen must (a) issue **JWT access tokens for a custom API audience**, (b) publish a JWKS,
-and (c) support the **device authorization grant** (RFC 8628) and **authorization code with PKCE** for
-public clients. No provider has been chosen or configured in this milestone, and nothing here has been
-run against a real one; the tests use a local stand-in (section 4).
+The mod opens the system browser and receives the result on a loopback address (RFC 8252), then
+exchanges the code using PKCE (RFC 7636). On a desktop with a browser that is one click plus the login
+itself. The device flow would add a "confirm this code" step and requires polling the provider, and
+gives nothing back here. It would only be better on a machine that cannot open a browser.
 
 ### What does not prove identity
 
-A Minecraft UUID or username sent by the client proves nothing: the mod is client-side code, and
-development and offline-mode profiles are freely chosen. The backend ignores both. A Minecraft
-profile can later be stored as a display attribute of an authenticated user, never as a credential.
+A Minecraft UUID or username proves nothing: the mod is client-side code, and development and
+offline-mode profiles are freely chosen. Neither is sent to the backend or read by the sign-in code.
+Only the provider's token says who the player is.
 
 ## 2. Database
 
@@ -100,42 +99,83 @@ curriculum imported and checks every curriculum row after each step.
 | `GET /api/v1/users/me` | any signed-in user | `{id, role, created_at}` for the caller |
 | `GET /api/v1/auth/student-check` | students only | the same body; exists to prove role enforcement |
 | `GET /api/v1/auth/teacher-check` | teachers only | the same body |
+| `GET /api/v1/auth/config` | anyone | `{enabled, issuer, audience, client_id}`: what a client needs to start a sign-in. Nothing secret |
 
-The curriculum endpoints and stateless grading remain public and ignore the `Authorization` header.
+The curriculum endpoints remain public and ignore the `Authorization` header. The stateless grader is
+public in development mode only (section 7).
 
 **Horizontal access.** No endpoint accepts a user ID, so a caller can only ever read their own
 record. There are no per-teacher resources yet. When they arrive (classes, rosters, student results),
 each query must filter by the authenticated teacher's `id`; being a teacher must not be enough to
 read another teacher's class.
 
-## 4. Testing login locally
+## 4. Auth0 development setup
 
-**Without a provider (automated).** `python -m pytest tests/test_auth.py` starts a loopback HTTP server
-that serves a discovery document and a JWKS, signs tokens with the matching key, and drives the real
-verification path. It covers valid sign-in, persistence, every rejection case (malformed, truncated,
-tampered, expired, not-yet-valid, wrong issuer or audience, missing claims, wrong key, unknown key ID,
-`alg: none`, HMAC-with-public-key), role access both ways, escalation attempts, disabled accounts, the
-CLI, an unreachable provider, and the public endpoints.
+You need three values from Auth0. None of them is a secret.
 
-**With a real provider (manual).** Register an API (its identifier is the audience) and a public
-"native" client with the device flow enabled, then in PowerShell from `backend/`:
+| Value | Where it comes from | Goes into |
+| --- | --- | --- |
+| Tenant domain | Chosen when you create the tenant, e.g. `dev-xxxxxxxx.us.auth0.com` | `MINELEDGER_AUTH_ISSUER`, as `https://<domain>/` **with the trailing slash** |
+| API identifier | You choose it when creating the API | `MINELEDGER_AUTH_AUDIENCE` |
+| Client ID | Auth0 generates it for the Native application | `MINELEDGER_AUTH_CLIENT_ID` |
 
-```powershell
-$env:MINELEDGER_AUTH_ISSUER   = '<issuer URL, exactly as it appears in the token "iss">'
-$env:MINELEDGER_AUTH_AUDIENCE = '<API identifier>'
-uvicorn mineledger_api.main:app --port 8000
+These steps were followed against a live development tenant on 2026-11-24 and sign-in from the game
+worked. Dashboard labels move; the settings themselves are what matter.
+
+**1. Create a tenant.** Sign up at auth0.com and create a development tenant. Note its domain.
+
+**2. Register the API** (Applications → APIs → Create API).
+
+- **Name:** MineLedger API.
+- **Identifier:** a URL-shaped string of your choice, for example `https://api.mineledger.dev`. It is
+  only a name; nothing is ever fetched from it. It cannot be changed later.
+- **Signing algorithm:** RS256.
+- In the API's settings, turn **Allow Offline Access** on. Without it no refresh token is issued and
+  players sign in again every launch.
+- Set the **access token lifetime** to something short, such as 3600 seconds. The default is a day.
+- Leave RBAC off. MineLedger roles live in its own database, not in Auth0.
+
+**3. Register the game** (Applications → Applications → Create Application → **Native**).
+
+- Note the **Client ID**. Ignore the client secret Auth0 shows; the mod never uses one.
+- **Allowed Callback URLs**, exactly these three, comma-separated:
+
+  ```
+  http://127.0.0.1:47821/callback, http://127.0.0.1:47822/callback, http://127.0.0.1:47823/callback
+  ```
+
+  Auth0 matches callback URLs exactly, including the port, so the mod uses these fixed ports
+  (`LoopbackCallbackServer.DEFAULT_PORTS`) and tries the next if one is busy.
+- **Token endpoint authentication method:** None. This is what makes it a public client.
+- **Grant types** (Advanced Settings): keep only **Authorization Code** and **Refresh Token**.
+- **Refresh token rotation:** on, with an absolute lifetime you are comfortable with (for example 30
+  days). The mod stores each replacement token as it arrives.
+- Leave Allowed Logout URLs, Web Origins and CORS empty.
+
+**4. Allow the game to use the API** (Applications → APIs → MineLedger API → **Application Access**).
+Find the Native application, edit it, and set **User Access** to **Authorized**. Leave client-credential
+(machine-to-machine) access unauthorized. Without this step every sign-in comes back with
+`invalid_request`: "Client ... is not authorized to access resource server ...".
+
+**5. Create a test user** (User Management → Users), and decide who may sign up. With public sign-up
+left on, anyone who registers becomes a MineLedger student on first sign-in.
+
+**6. Check the values.** `https://<domain>/.well-known/openid-configuration` must load in a browser,
+and its `issuer` must be character-for-character what you put in `MINELEDGER_AUTH_ISSUER`.
+
+**7. Configure the backend.** Put the three values in `backend/.env` (git-ignored; copy
+`.env.example` if it does not exist yet), so they are there every time the server starts:
+
+```
+MINELEDGER_AUTH_ISSUER=https://<your tenant domain>/
+MINELEDGER_AUTH_AUDIENCE=<your API identifier>
+MINELEDGER_AUTH_CLIENT_ID=<your Native application client ID>
 ```
 
-Get an access token with the provider's device flow (endpoint URLs are in
-`<issuer>/.well-known/openid-configuration`), then:
+Then, from `backend/`: `uvicorn mineledger_api.main:app --port 8000`. Setting the same names as
+environment variables works too and overrides the file.
 
-```powershell
-curl.exe -H "Authorization: Bearer <access token>" http://127.0.0.1:8000/api/v1/users/me
-curl.exe -i http://127.0.0.1:8000/api/v1/users/me                      # 401
-curl.exe -H "Authorization: Bearer <access token>" http://127.0.0.1:8000/api/v1/auth/teacher-check   # 403 until granted
-```
-
-Swagger (`/docs`) has an **Authorize** button that takes the same token.
+`http://127.0.0.1:8000/api/v1/auth/config` should now show `"enabled": true` with your three values.
 
 ## 5. Granting teacher privileges
 
@@ -150,100 +190,192 @@ mineledger disable-user <user-id>        # refuse the account entirely
 mineledger enable-user <user-id>
 ```
 
-The teacher signs in once (which creates their student record), reads their `id` from
-`GET /api/v1/users/me`, and gives it to the administrator. Exit code 4 means no such user; the CLI
+The teacher signs in once (which creates their student record), reads their Account ID in the game's
+Settings tab (or from `GET /api/v1/users/me`), and gives it to the administrator. Exit code 4 means no such user; the CLI
 never creates one.
 
 A user cannot promote themselves because nothing they control is consulted: role-like claims in a
 token (`role`, `roles`, `groups`, `scope`, `permissions`, custom claims), query parameters, headers and
 request bodies are all ignored, and there is no write endpoint. Tests cover each of these.
 
-## 6. Minecraft login (designed, not implemented)
+## 6. Minecraft sign-in
 
-Use the **OAuth 2.0 device authorization grant (RFC 8628)**. The student never types a password in
-Minecraft.
+Code: `minecraft-mod/src/main/java/com/mineledger/backend/auth/` (no Minecraft classes), wired in
+`BackendRuntime`, shown in the MineLedger **Settings** tab.
 
-1. The student clicks **Sign in** in MineLedger Settings.
-2. The mod POSTs its `client_id`, the API audience and scope `openid offline_access` to the provider's
-   device authorization endpoint. It receives a `device_code`, a short `user_code`, a
-   `verification_uri` and a polling `interval`.
-3. The mod shows the code and opens the browser at `verification_uri_complete` (falling back to
-   displaying the URL). The student signs in there with their normal account, with whatever MFA or
-   school SSO the provider enforces.
-4. The mod polls the token endpoint at the given `interval`, off the render thread, handling
-   `authorization_pending`, `slow_down`, `access_denied` and `expired_token`. Polling runs only while
-   that sign-in screen is open and stops at the device code's expiry. This is a bounded, user-started
-   exception to the mod's "no polling" rule and needs sign-off when it is built.
-5. On success it receives a short-lived access token (aim for 5–15 minutes) and a refresh token, and
-   calls `GET /api/v1/users/me`.
+**What the player does.** Settings → **Sign In**. The system browser opens Auth0's login page. After
+logging in, the browser shows "You are signed in" and the game shows the name, role and account ID.
+No password is ever typed into Minecraft.
 
-**No client secret.** The mod is a public client: it is identified by a `client_id`, which is not
-secret, and the device grant needs nothing else. Anything shipped in a mod jar can be extracted, so a
-secret must never be put there. The mod learns the issuer, client ID and audience from non-secret
-configuration; a public `GET /api/v1/auth/config` endpoint on this backend is the suggested source,
-so the values are not baked into the jar.
+**What happens.**
 
-**Refresh.** Before the access token expires, or on a 401, the mod exchanges the refresh token at the
-token endpoint. Configure the provider for refresh-token rotation with reuse detection and an absolute
-lifetime. If the refresh fails, the mod returns to signed-out state; offline practice keeps working.
+1. The mod asks the backend for `/api/v1/auth/config`, then reads the provider's discovery document
+   and checks that it names the same issuer.
+2. It starts a listener on `127.0.0.1` (first free port of 47821–47823), generates a PKCE verifier,
+   a `state` and a `nonce`, and opens `/authorize` in the browser with `prompt=login`.
+3. The browser is redirected to `http://127.0.0.1:<port>/callback?code=...&state=...`. The listener
+   accepts only a `GET /callback` carrying this attempt's `state`, answers with a plain page, and closes.
+4. The mod exchanges the code and the verifier at the token endpoint. No client secret is involved.
+5. If an ID token came back, its issuer, audience, nonce and expiry are checked and its `name` is kept
+   for display.
+6. The mod calls `GET /api/v1/users/me` with the access token. **Only when the backend accepts it is
+   the player signed in.** The ID and role shown are the backend's answer.
 
-**Storage.** The access token stays in memory. The refresh token goes in its own file under the game
-directory (not `config.json`), readable by the current OS user only, never logged and never shown.
-A plain file is readable by other mods and by malware running as the same user; rotation and the
-absolute lifetime bound the damage.
+**Tokens.**
 
-**Logout and revocation.**
+| Token | Kept where | Sent to |
+| --- | --- | --- |
+| Access token | Memory only | The MineLedger server, as `Authorization: Bearer`, on `/users/me` only |
+| Refresh token | Memory, and `<game dir>/mineledger/session.json` | Auth0's token and revocation endpoints only |
+| ID token | Not kept; only the display name is | Nowhere |
 
-- *Logout:* the mod calls the provider's revocation endpoint (RFC 7009) with the refresh token,
-  deletes the file and clears memory. The current access token dies at its own expiry.
-- *Lost or shared computer:* revoke the user's sessions or refresh tokens in the provider's console.
-- *Immediate cut-off at the backend:* `mineledger disable-user <id>` refuses the account on its next
-  request, whatever tokens exist. `revoke-teacher` takes effect the same way.
-- The backend cannot revoke one individual access token before its expiry; short lifetimes are the
-  control for that.
+- Nothing is logged, and no token is in `config.json`, an error message or a `toString`.
+- Tokens travel only over https, or plain http to the same computer. With any other server address
+  Sign In explains the problem and contacts nothing.
+- `session.json` is a plain file readable by anything running as the same OS user. Rotation, the
+  absolute lifetime and revocation on Sign Out limit what a copy is worth.
 
-The **web portal** uses authorization code with PKCE as a public client against the same provider and
-audience. The backend needs no change for it beyond CORS for the portal's origin.
+**Expiry and refresh.** An access token within a minute of expiry is renewed with the refresh token
+before use. If the backend answers 401 early, the token is renewed once and the request repeated. A
+refresh token Auth0 rejects ends the session with "Your sign-in has expired". A provider or server that
+is merely unreachable never signs anyone out.
 
-Authenticated calls from the mod must use HTTPS. The mod's current plain-HTTP base URL is acceptable
-only for the public curriculum on loopback.
+**Next launch.** When MineLedger is opened and the server is online, a remembered refresh token is
+exchanged silently and `/users/me` is asked again. No browser opens. A token stored for a different
+issuer or client is deleted without being sent.
+
+**Sign Out.** The account and both tokens are dropped at once and `session.json` is deleted. Then the
+refresh token is revoked at Auth0 (best effort). The access token cannot be revoked and expires on its
+own, which is why its lifetime should be short. Because sign-in always uses `prompt=login`, the next
+person at the same computer must log in themselves even if the browser still remembers the last one.
+
+**When Auth0 refuses.** The game shows Auth0's error code and its explanation, as one plain line
+capped at 240 characters with control and formatting characters removed, since that text arrives
+through the browser.
+
+**Cancel.** Cancel Sign-In stops the listener and ignores anything that arrives later. If tokens were
+already issued for the cancelled attempt, the refresh token is revoked. An unfinished attempt gives up
+after five minutes. If no browser appeared, Copy Sign-In Link puts the same address on the clipboard.
+
+**Offline behaviour is unchanged.** Signing in needs the server, so the button is disabled unless the
+connection state is Online, and Offline Practice makes no network calls. Automatic fallback, local
+grading, local XP and Recharge do not involve the account at all. Losing the connection while signed
+in changes nothing about the account. **Local XP is never sent to, merged with, or converted into
+server XP**; the sign-in code has no access to local progress, and a test enforces that.
+
+The mod still does not submit answers or read server progress. That is the next step (`PROGRESS.md`,
+section 6).
 
 ## 7. Configuration
 
-Read from the process environment (see `.env.example`). None of these is a secret.
+Read from the process environment, and from `backend/.env` for any name the environment does not set
+(`MINELEDGER_*` lines only; see `.env.example`). `MINELEDGER_ENV_FILE` names a different file, or
+disables the file when set to an empty value, which is what the test suite does. None of the settings
+below is a secret.
 
 | Variable | Required | Meaning |
 | --- | --- | --- |
-| `MINELEDGER_AUTH_ISSUER` | to enable auth | Must equal the token's `iss` exactly, including any trailing slash |
+| `MINELEDGER_AUTH_ISSUER` | to enable auth | Must equal the token's `iss` exactly. For Auth0: `https://<domain>/` with the trailing slash |
 | `MINELEDGER_AUTH_AUDIENCE` | to enable auth | The API identifier the token's `aud` must contain |
+| `MINELEDGER_AUTH_CLIENT_ID` | for game sign-in | The Native application's client ID. Published at `/api/v1/auth/config`; the backend itself never uses it |
 | `MINELEDGER_AUTH_JWKS_URL` | no | Signing-key URL. If unset it is read from `<issuer>/.well-known/openid-configuration`, whose `issuer` must match |
-| `MINELEDGER_AUTH_ALGORITHMS` | no | Comma-separated, default `RS256`. Asymmetric only; anything else stops the verifier from being created |
+| `MINELEDGER_AUTH_ALGORITHMS` | no | Comma-separated, default `RS256`. Asymmetric only |
+| `MINELEDGER_ENV` | no | `development` (default) or `production`; see below |
 
-Until both the issuer and the audience are set, protected endpoints answer 503 and everything public
-works as before. The settings are read once per process; restart to change them. The only secret the
-backend has is the database URL, which also stays in the environment.
+Until the issuer and the audience are set, protected endpoints answer 503 and everything public works
+as before. The settings are read once per process; restart to change them. The only secret the backend
+has is the database URL.
 
-Dependency added: `PyJWT[crypto]` (PyJWT with `cryptography`).
+### Deployment modes
 
-## 8. Known limitations
+| | `development` (default) | `production` |
+| --- | --- | --- |
+| Who is answered | This computer only. Any other address, or any request that came through a proxy, gets 403 | Everyone |
+| Public stateless grader (`POST /questions/{id}/grade`) | On | **Off** (403) |
+| Start-up checks | None | Refuses to start unless issuer, audience and client ID are set, the issuer (and JWKS URL) are https, and the database URL is not the built-in development one |
 
-- **Not yet run against a real provider.** Verification is tested against a local stand-in that
-  follows the same standards. Provider-specific details (token lifetimes, audience setup, device-flow
-  settings) still have to be configured and tried.
-- **Anyone the provider authenticates becomes a student.** Restrict who can sign up at the provider
-  (school domain, invitations) if that matters.
-- **Access tokens are not individually revocable** here; see section 6.
-- **The administrator is whoever can reach the database.** There is no admin role, no approval
-  workflow and no audit log beyond `role_changed_at`.
-- **Users are identified to the operator by UUID and provider subject**, because no email or name is
-  stored. Granting a teacher relies on the teacher passing on their ID through a trusted channel.
-- **One issuer per deployment.**
-- **No application-level rate limiting.** Invalid tokens are rejected before any database access, and
-  unknown key IDs trigger at most one JWKS refresh per 30 seconds, but request throttling belongs in a
-  reverse proxy.
-- **No TLS or CORS handling in the app.** Deploy behind HTTPS; add CORS when the portal exists.
-- **An ID token must not be accepted as an access token.** The audience check prevents it as long as
-  the API audience differs from every client ID, which is the normal setup.
-- **The stateless grading endpoint is still public.** Since Milestone 13B it is an answer oracle for
-  official submissions; see `PROGRESS.md`, section 7.
-- **No classes or rosters**, so "which students belong to which teacher" cannot be enforced yet.
+The public grader tells anyone the correct answer, which defeats official submissions. It therefore
+exists only where nobody but the developer can reach it. A development server that is put on a network
+by mistake answers nobody else, and a production server does not have the endpoint. Development mode's
+"this computer only" check looks at the connecting address and at proxy headers; a same-machine proxy
+that strips those headers would defeat it, so `MINELEDGER_ENV=production` is still required for any
+real deployment. TLS is not handled by the app: run production behind an HTTPS reverse proxy.
+
+## 8. Manual test: sign in from Minecraft
+
+Prerequisites: section 4 done, Docker Desktop running, the backend migrated and the curriculum imported.
+
+1. **Backend**, PowerShell in `backend/`:
+
+   ```powershell
+   docker compose up -d --wait
+   .\.venv\Scripts\uvicorn mineledger_api.main:app --port 8000
+   ```
+
+   (with the three values in `backend/.env`, section 4 step 7)
+
+   Open `http://127.0.0.1:8000/api/v1/auth/config`: expect `"enabled": true`.
+2. **Game**, PowerShell in `minecraft-mod/` (Java 25): `./gradlew.bat runClient`. Make sure
+   `run/mineledger/config.json` has `"mode": "auto"` and `"backend_url": "http://127.0.0.1:8000"`.
+3. Enter a world, right-click a MineLedger Computer → MineOS → MineLedger. The title bar should say
+   **Online**. Open **Settings**: it shows "Account: Not signed in." and an enabled **Sign In** button.
+4. Press **Sign In**. The browser opens your Auth0 login page; the game shows "Finish in your web
+   browser". Log in as the test user. The browser shows "You are signed in"; the game shows
+   "Signed in as <name>", "Role: Student" and an account ID.
+5. In `backend/`: `.\.venv\Scripts\mineledger list-users` shows that ID with an `auth0|...` subject.
+6. **Role:** `mineledger grant-teacher <id>`, leave MineLedger to the desktop, wait 15 seconds, reopen
+   it → Settings shows "Role: Teacher". `revoke-teacher` reverses it.
+7. **Remembered sign-in:** quit the game and start it again. Open MineLedger → Settings: you are
+   signed in without the browser opening.
+8. **Sign Out:** press it. Settings shows "Not signed in", `run/mineledger/session.json` is gone, and
+   Sign In asks for the password again.
+9. **Cancel:** press Sign In, close the browser tab, press **Cancel Sign-In**. Settings returns to
+   "Not signed in" with no error.
+10. **Refused:** `mineledger disable-user <id>`, then sign in: the game reports that the server refused
+    the account. `enable-user` restores it.
+11. **Server stopped:** stop uvicorn and reopen MineLedger. Automatic mode falls back to offline
+    practice exactly as before; Sign In is disabled and local practice, XP and Recharge work.
+12. **Offline Practice:** choose it in Settings. Sign In is disabled and nothing is contacted.
+13. **Logs:** search `run/logs/latest.log` for `eyJ` (the start of every JWT). There must be no match.
+
+If the browser shows an Auth0 error page instead of the login form, the usual cause is a callback URL
+that is not registered exactly (step 3 of section 4). If the browser says "Sign-in was not completed",
+the game's Settings tab shows Auth0's error code and its explanation; "not authorized to access resource
+server" means step 4 of section 4 was skipped. If the game says the server did not accept the sign-in, `MINELEDGER_AUTH_ISSUER` or
+`MINELEDGER_AUTH_AUDIENCE` differs from what Auth0 puts in the token; the trailing slash on the issuer
+is the usual culprit.
+
+Automated, no Auth0 needed: `python -m pytest` in `backend/` and `./gradlew.bat build test` in
+`minecraft-mod/`. The Java tests run the whole flow over real HTTP against a local stand-in provider.
+
+## 9. Security notes and limitations
+
+- **Confirmed by hand once.** Sign-in from the running game against a live Auth0 tenant worked on
+  2026-11-24 and the server reported the account as a student. The rest of section 8 (remembered
+  sign-in, Sign Out, role change, refusal, offline) is covered by automated tests against a stand-in
+  that enforces PKCE, single-use codes and refresh-token rotation, but has not all been clicked through.
+- **The OAuth client code in the mod is hand-written** on the JDK's HTTP client rather than taken from
+  a library. Bundling an OAuth SDK and its dependencies into a Fabric mod was judged worse than a few
+  hundred lines of JDK-only code that build one URL and post two forms. All signature verification, the part
+  that is dangerous to get wrong, stays in PyJWT on the server. The mod never trusts a token's contents.
+- **The ID token's signature is not checked by the mod.** OpenID Connect allows that for a token
+  received directly from the token endpoint over TLS, and it is used only for the display name.
+- **The backend chooses the identity provider the mod opens.** A player pointed at a malicious server
+  address could be sent to a fake login page. The browser's address bar is the defence, as with any
+  web login; the server address is set in a local file, not by other players.
+- **Minecraft may log the sign-in URL if the browser fails to open.** It contains the `state`, `nonce`
+  and PKCE challenge of one attempt, never a token, code or verifier.
+- **`session.json` is not encrypted** (see section 6). On a shared computer, a player who does not
+  press Sign Out stays signed in for the next person using the same OS account.
+- **Access tokens are not individually revocable.** Keep their lifetime short. `disable-user` cuts an
+  account off at the backend immediately.
+- **Anyone Auth0 authenticates becomes a student.** Restrict sign-up in Auth0 if that matters.
+- **The administrator is whoever can reach the database.** There is no admin role and no audit log
+  beyond `role_changed_at`. Users are identified to the operator by UUID and provider subject.
+- **One issuer per deployment.** Changing it orphans existing `users` rows, since identity is
+  `(issuer, subject)`.
+- **No application-level rate limiting, TLS or CORS.** These belong to the deployment.
+- **An ID token must not be accepted as an access token.** The audience check prevents it because the
+  API identifier differs from the client ID.
+- **Production mode only guards what it can see.** It checks settings at start-up; it cannot tell
+  whether TLS is really in front of it.

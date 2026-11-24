@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Annotated, TypeVar
 
-from fastapi import APIRouter, Depends, HTTPException, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from sqlalchemy import func, select, text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session, selectinload
@@ -175,10 +175,21 @@ def get_assignment_questions(assignment_id: str, session: SessionDep) -> schemas
     )
 
 
+def require_public_grading(request: Request) -> None:
+    """The stateless grader tells anyone the answer, so it exists for local development only."""
+    if getattr(request.app.state, "environment", "development") == "production":
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Public grading is disabled on this server")
+
+
 @router.post(
     "/questions/{question_id}/grade",
     response_model=schemas.GradeResponse,
-    responses={**NOT_FOUND, 422: {"description": "Malformed request, or not a multiple-choice question"}},
+    responses={
+        **NOT_FOUND,
+        403: {"description": "Disabled: the server runs in production mode"},
+        422: {"description": "Malformed request, or not a multiple-choice question"},
+    },
+    dependencies=[Depends(require_public_grading)],
 )
 def grade_question(question_id: str, request: schemas.GradeRequest, session: SessionDep) -> schemas.GradeResponse:
     """Stateless: never records attempts, credits or XP. Invalid option IDs return status `invalid_option`."""

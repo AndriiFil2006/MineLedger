@@ -105,8 +105,11 @@ official credit.
 
 ## 4. Trying it through FastAPI
 
-Authentication needs an identity provider. For local testing there is a throwaway one (never for
-deployment): it signs tokens with a key that exists only while it runs.
+Real sign-in uses Auth0 and happens in the game (`AUTHENTICATION.md`, sections 4 and 8), but the game
+does not expose its access token, and Auth0's dashboard "Test" tokens are machine tokens, not users. To
+call these endpoints by hand there is therefore still a throwaway local provider. It is a test tool only:
+it signs tokens with a key that exists while it runs, the game cannot sign in with it, and a server
+pointed at it must never be reachable by anyone else.
 
 PowerShell, from `backend/`, with Docker Desktop running:
 
@@ -192,8 +195,8 @@ What moving to Supabase will need:
 
 None of this is built. In rough order:
 
-1. **Sign-in** (design in `AUTHENTICATION.md`, section 6): a chosen identity provider, the device
-   authorization flow, token storage and refresh, and HTTPS for every authenticated call.
+1. **Sign-in: done in Milestone 13C** (`AUTHENTICATION.md`, section 6). `SignInManager.accessToken()`
+   supplies a valid token, renewing it when needed, for the requests below.
 2. **POST support in `BackendClient`**, which is GET-only today, with the bearer token and the
    `Idempotency-Key` header, still off the render thread.
 3. **A pending-submission record.** The client must generate the key before sending, keep it with the
@@ -215,18 +218,20 @@ None of this is built. In rough order:
 
 ## 7. Limitations
 
-- **The public grading endpoint is an answer oracle.** `POST /api/v1/questions/{id}/grade` is
-  unchanged, unauthenticated and stateless, so anyone can try all four options and read the
-  explanation, then submit the right one officially. It must be removed, put behind authentication
-  or limited to Recharge-eligible students before real students use official submissions. It was
-  left alone here because the instruction was not to break it.
+- **The public grading endpoint is an answer oracle, and is confined to development.**
+  `POST /api/v1/questions/{id}/grade` is unauthenticated and stateless, so anyone who can reach it can
+  try all four options, read the explanation, and then submit the right answer officially. Since
+  Milestone 13C it is off in production mode, and a development-mode server answers only its own
+  computer (`AUTHENTICATION.md`, "Deployment modes"). A server that students can reach must run with
+  `MINELEDGER_ENV=production`.
 - **Official submissions can also be brute-forced**, in at most four attempts per question, because
   there is no attempt limit (the Java client has none either). Every attempt is recorded, so it is
   visible; nothing currently acts on it.
 - **Completed concepts reveal answers.** After completion, a student can answer the concept's
   remaining question freely. This matches the local client.
 - **No rate limiting** in the application.
-- **One identity provider is still not chosen**; everything was tested with the local stand-in.
+- **Auth0 is the development provider.** Sign-in from the game has been confirmed against a live tenant;
+  the submission and progress endpoints have only been exercised with the local stand-in's tokens.
 - **Multiple choice only.** Journal-entry questions cannot be submitted.
 - **No teacher access** to student progress, and no classes or rosters.
 - **No deletion or reset of a student's progress**, and no retention policy for attempts.

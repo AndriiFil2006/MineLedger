@@ -10,6 +10,7 @@ import java.nio.charset.CharacterCodingException;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -18,12 +19,15 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 import com.mineledger.backend.RemoteCurriculum.*;
+import com.mineledger.backend.auth.AccountApi;
+import com.mineledger.backend.auth.AuthSettings;
 
 /**
  * HTTP transport for the FastAPI backend. No Minecraft or GUI types; nothing here blocks the calling thread.
- * Requests and response parsing run on two daemon worker threads. Redirects are not followed.
+ * Requests and response parsing run on two daemon worker threads. Redirects are not followed, so an
+ * {@code Authorization} header can never be forwarded to another host. Nothing here logs.
  */
-public final class BackendClient implements CurriculumApi, AutoCloseable {
+public final class BackendClient implements CurriculumApi, AccountApi, AutoCloseable {
     static final int MAX_RESPONSE_BYTES = 4 * 1024 * 1024;
     private static final AtomicInteger THREADS = new AtomicInteger();
 
@@ -62,17 +66,28 @@ public final class BackendClient implements CurriculumApi, AutoCloseable {
         return get("/api/v1/assignments/" + segment(id) + "/questions", BackendJson::questions);
     }
 
+    @Override public CompletableFuture<Optional<AuthSettings>> authSettings() { return get("/api/v1/auth/config", BackendJson::authSettings); }
+
+    /** The only request that carries a credential: the access token, to the configured server and nowhere else. */
+    @Override public CompletableFuture<RemoteUser> me(String accessToken) {
+        if (accessToken == null || accessToken.isBlank()) return CompletableFuture.failedFuture(new IllegalArgumentException("An access token is required"));
+        return get("/api/v1/users/me", accessToken, BackendJson::user);
+    }
+
     private static String segment(String id) {
         if (id == null || id.isBlank()) throw new IllegalArgumentException("An entity ID is required");
         return URLEncoder.encode(id, StandardCharsets.UTF_8).replace("+", "%20");
     }
 
-    private <T> CompletableFuture<T> get(String path, Function<String, T> parser) {
+    private <T> CompletableFuture<T> get(String path, Function<String, T> parser) { return get(path, null, parser); }
+
+    private <T> CompletableFuture<T> get(String path, String bearerToken, Function<String, T> parser) {
         CompletableFuture<HttpResponse<byte[]>> exchange;
         try {
-            HttpRequest request = HttpRequest.newBuilder(URI.create(baseUrl + path)).timeout(requestTimeout)
-                    .header("Accept", "application/json").GET().build();
-            exchange = http.sendAsync(request, HttpResponse.BodyHandlers.ofByteArray());
+            HttpRequest.Builder builder = HttpRequest.newBuilder(URI.create(baseUrl + path)).timeout(requestTimeout)
+                    .header("Accept", "application/json").GET();
+            if (bearerToken != null) builder.header("Authorization", "Bearer " + bearerToken);
+            exchange = http.sendAsync(builder.build(), HttpResponse.BodyHandlers.ofByteArray());
         } catch (RuntimeException exception) {
             return CompletableFuture.failedFuture(BackendException.from(exception));
         }
